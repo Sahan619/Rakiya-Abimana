@@ -1,0 +1,321 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  Admin
+  Verifier
+  JobSeeker
+  Entrepreneur
+  Employer
+  Funder
+  TrainingProvider
+}
+
+enum VerificationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum PitchStatus {
+  DRAFT
+  PENDING_REVIEW
+  APPROVED
+  REJECTED
+}
+
+enum JobStatus {
+  OPEN
+  CLOSED
+}
+
+enum ApplicationStatus {
+  APPLIED
+  REVIEWING
+  SHORTLISTED
+  REJECTED
+  ACCEPTED
+}
+
+enum FundingType {
+  MICRO_LOAN
+  GRANT
+}
+
+model User {
+  id                String       @id @default(uuid())
+  email             String       @unique
+  passwordHash      String
+  fullName          String
+  dateOfBirth       DateTime
+  phone             String?
+  districtId        String?
+  district          District?    @relation(fields: [districtId], references: [id])
+  lat               Float?
+  lng               Float?
+  preferredLanguage String       @default("en") // "en", "si", "ta"
+  isVerified        Boolean      @default(false)
+  isActive          Boolean      @default(true) // soft delete
+  termsAcceptedAt   DateTime     @default(now())
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  roles             UserRole[]
+  jobSeekerProfile  JobSeekerProfile?
+  employerProfile   EmployerProfile?
+  funderProfile     FunderProfile?
+  verificationRequest VerificationRequest?
+
+  jobsPosted        Job[]
+  jobApplications   JobApplication[]
+  pitches           Pitch[]
+  pitchInterests    PitchInterest[]
+
+  sentMessages      Message[]    @relation("SentMessages")
+  receivedMessages  Message[]    @relation("ReceivedMessages")
+  notifications     Notification[]
+  auditActions      AuditLog[]   @relation("ActorLogs")
+}
+
+model UserRole {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      Role
+
+  @@unique([userId, role])
+}
+
+model JobSeekerProfile {
+  id              String   @id @default(uuid())
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category        String   // blue-collar, skilled tradesperson, white-collar
+  skills          String   // comma separated or JSON string
+  trade           String?
+  experienceYears Int?     @default(0)
+  bio             String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model EmployerProfile {
+  id                String   @id @default(uuid())
+  userId            String   @unique
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  companyName       String
+  businessRegNumber String?
+  description       String?
+  website           String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model FunderProfile {
+  id             String   @id @default(uuid())
+  userId         String   @unique
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  funderType     String   // CSR business, diaspora donor, registered MFI, angel donor, NGO
+  focusDistricts String?  // comma-separated district IDs
+  focusSectors   String?  // comma-separated sector IDs
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model District {
+  id        String   @id // e.g. "colombo", "gampaha", "kandy", "jaffna"
+  nameEn    String
+  nameSi    String
+  nameTa    String
+  province  String
+  lat       Float
+  lng       Float
+
+  users     User[]
+  jobs      Job[]
+  pitches   Pitch[]
+}
+
+model JobCategory {
+  id        String   @id
+  nameEn    String
+  nameSi    String
+  nameTa    String
+  trades    Trade[]
+}
+
+model Trade {
+  id          String      @id
+  categoryId  String
+  category    JobCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  nameEn      String
+  nameSi      String
+  nameTa      String
+}
+
+model Sector {
+  id        String   @id
+  nameEn    String
+  nameSi    String
+  nameTa    String
+  pitches   Pitch[]
+}
+
+model SystemSetting {
+  key         String   @id
+  value       String
+  description String?
+  updatedAt   DateTime @updatedAt
+}
+
+model VerificationRequest {
+  id                   String             @id @default(uuid())
+  userId               String             @unique
+  user                 User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  encryptedNic         String             // AES-256-GCM encrypted
+  nicFormat            String             // "OLD" | "NEW"
+  dobMatch             Boolean            // system-set, uneditable by anyone
+  gramaNiladhariDocUrl String?
+  businessRegDocUrl    String?
+  status               VerificationStatus @default(PENDING)
+  rejectionReason      String?
+  checklistResult      String?            // JSON string with checklist checks
+  reviewerId           String?
+  reviewedAt           DateTime?
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+}
+
+model Job {
+  id             String           @id @default(uuid())
+  employerId     String
+  employer       User             @relation(fields: [employerId], references: [id], onDelete: Cascade)
+  title          String
+  category       String
+  districtId     String
+  district       District         @relation(fields: [districtId], references: [id])
+  lat            Float            // district or approximate lat
+  lng            Float            // district or approximate lng
+  wage           Float
+  wageType       String           @default("MONTHLY") // DAILY, MONTHLY, PIECE_RATE, HOURLY
+  description    String
+  sourceLanguage String           @default("en")
+  status         JobStatus        @default(OPEN)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  applications   JobApplication[]
+}
+
+model JobApplication {
+  id          String            @id @default(uuid())
+  jobId       String
+  job         Job               @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  applicantId String
+  applicant   User              @relation(fields: [applicantId], references: [id], onDelete: Cascade)
+  status      ApplicationStatus @default(APPLIED)
+  notes       String?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  @@unique([jobId, applicantId])
+}
+
+model Pitch {
+  id              String         @id @default(uuid())
+  entrepreneurId  String
+  entrepreneur    User           @relation(fields: [entrepreneurId], references: [id], onDelete: Cascade)
+  title           String
+  story           String
+  districtId      String
+  district        District       @relation(fields: [districtId], references: [id])
+  sectorId        String?
+  sector          Sector?        @relation(fields: [sectorId], references: [id])
+  fundingNeeded   Float
+  fundingType     FundingType    @default(MICRO_LOAN)
+  status          PitchStatus    @default(PENDING_REVIEW)
+  rejectionReason String?
+  checklistResult String?
+  sourceLanguage  String         @default("en")
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  interests       PitchInterest[]
+}
+
+model PitchInterest {
+  id           String   @id @default(uuid())
+  pitchId      String
+  pitch        Pitch    @relation(fields: [pitchId], references: [id], onDelete: Cascade)
+  funderId     String
+  funder       User     @relation(fields: [funderId], references: [id], onDelete: Cascade)
+  pledgeAmount Float?
+  message      String
+  createdAt    DateTime @default(now())
+}
+
+model Conversation {
+  id             String    @id @default(uuid())
+  type           String    // "JOB_APPLICATION" | "PITCH_INTEREST" | "DIRECT"
+  referenceId    String?   // jobId, pitchId, etc.
+  participant1Id String
+  participant2Id String
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  messages       Message[]
+}
+
+model Message {
+  id               String       @id @default(uuid())
+  conversationId   String
+  conversation     Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  senderId         String
+  sender           User         @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  receiverId       String
+  receiver         User         @relation("ReceivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
+  content          String
+  originalLanguage String       @default("en")
+  createdAt        DateTime     @default(now())
+}
+
+model TranslationCache {
+  id             String   @id @default(uuid())
+  cacheKey       String   @unique
+  sourceLang     String
+  targetLang     String
+  originalText   String
+  translatedText String
+  provider       String   @default("MOCK")
+  createdAt      DateTime @default(now())
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String   // VERIFICATION, APPLICATION, MESSAGE, PLEDGE, SYSTEM
+  title     String
+  message   String
+  link      String?
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  action     String
+  actorId    String?
+  actor      User?    @relation("ActorLogs", fields: [actorId], references: [id], onDelete: SetNull)
+  targetType String
+  targetId   String?
+  details    String?
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+}
+
