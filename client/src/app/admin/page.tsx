@@ -181,72 +181,28 @@ export default function AdminDashboardPage() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
-        <h1 className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center space-x-2">
-          <SlidersHorizontal className="text-purple-700" size={26} />
-          <span>Platform Administrator Dashboard</span>
-        </h1>
-        <p className="text-xs sm:text-sm text-gray-500 mt-1">
-          Manage system configurations, user accounts, soft deactivations, master categories, and review the audit trail.
-        </p>
+    <div className="grid items-start gap-6 lg:grid-cols-[250px_minmax(0,1fr)]">
+      <aside className="surface-card p-5 lg:sticky lg:top-24">
+        <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary-50 text-primary-800"><SlidersHorizontal size={21} /></span>
+        <p className="mt-5 text-xs font-bold uppercase tracking-[.16em] text-primary-700">Administrator</p>
+        <h1 className="mt-2 text-xl font-semibold tracking-tight text-slate-950">Platform dashboard</h1>
+        <p className="mt-2 text-sm leading-6 text-slate-600">Manage users, platform settings, reference data, and audit records.</p>
 
-        {/* Tab switch */}
-        <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-gray-100">
-          <button
-            type="button"
-            onClick={() => setActiveTab("users")}
-            className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center space-x-2 transition ${
-              activeTab === "users"
-                ? "bg-purple-700 text-white shadow-sm"
-                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-            }`}
-          >
-            <Users size={16} />
-            <span>User Accounts & Roles</span>
-          </button>
+        <nav className="mt-6 grid gap-1" aria-label="Admin dashboard sections">
+          {[
+            { id: "users" as const, label: "User accounts & roles", icon: Users },
+            { id: "settings" as const, label: "System settings", icon: Settings },
+            { id: "master" as const, label: "Master data", icon: Database },
+            { id: "audit" as const, label: "Audit trail", icon: History }
+          ].map(({ id, label, icon: Icon }) => (
+            <button key={id} type="button" onClick={() => setActiveTab(id)} aria-current={activeTab === id ? "page" : undefined} className={`flex min-h-11 items-center gap-3 rounded-xl px-3 text-left text-sm font-semibold transition ${activeTab === id ? "bg-primary-700 text-white shadow-sm" : "text-slate-600 hover:bg-primary-50 hover:text-primary-800"}`}>
+              <Icon size={17} />{label}
+            </button>
+          ))}
+        </nav>
+      </aside>
 
-          <button
-            type="button"
-            onClick={() => setActiveTab("settings")}
-            className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center space-x-2 transition ${
-              activeTab === "settings"
-                ? "bg-purple-700 text-white shadow-sm"
-                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-            }`}
-          >
-            <Settings size={16} />
-            <span>System Settings</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab("master")}
-            className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center space-x-2 transition ${
-              activeTab === "master"
-                ? "bg-purple-700 text-white shadow-sm"
-                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-            }`}
-          >
-            <Database size={16} />
-            <span>Master Data (Districts & Sectors)</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab("audit")}
-            className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center space-x-2 transition ${
-              activeTab === "audit"
-                ? "bg-purple-700 text-white shadow-sm"
-                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-            }`}
-          >
-            <History size={16} />
-            <span>Audit Trail Logs</span>
-          </button>
-        </div>
-      </div>
+      <div className="min-w-0 space-y-6">
 
       {message && (
         <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs sm:text-sm rounded-xl flex items-center space-x-2">
@@ -572,7 +528,7 @@ export default function AdminDashboardPage() {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }
-

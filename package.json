@@ -8,16 +8,19 @@
     "client"
   ],
   "scripts": {
-    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
-    "dev:server": "npm run dev --workspace=server",
-    "dev:client": "npm run dev --workspace=client",
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:backend": "npm run dev --workspace=server",
+    "dev:frontend": "npm run dev --workspace=client",
+    "dev:server": "npm run dev:backend",
+    "dev:client": "npm run dev:frontend",
     "build": "npm run build --workspace=server && npm run build --workspace=client",
-    "build:server": "npm run build --workspace=server",
-    "build:client": "npm run build --workspace=client",
+    "build:backend": "npm run build --workspace=server",
+    "build:frontend": "npm run build --workspace=client",
+    "build:server": "npm run build:backend",
+    "build:client": "npm run build:frontend",
     "seed": "npm run seed --workspace=server"
   },
   "devDependencies": {
     "concurrently": "^8.2.2"
   }
 }
-

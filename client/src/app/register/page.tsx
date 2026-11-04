@@ -88,21 +88,21 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="max-w-2xl mx-auto my-6 bg-white border border-gray-200 rounded-2xl p-6 sm:p-8 shadow-sm">
+    <div className="surface-card mx-auto my-2 max-w-3xl p-6 sm:p-9">
       <div className="text-center mb-6">
-        <div className="w-12 h-12 bg-primary-100 text-primary-800 rounded-xl flex items-center justify-center mx-auto mb-3">
+      <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary-50 text-primary-800">
           <UserPlus size={26} />
         </div>
-        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
+      <h1 className="text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl">
           {t("auth.registerTitle", "Create Your Account")}
         </h1>
-        <p className="text-xs sm:text-sm text-gray-500 mt-1">
-          Join thousands of workers and entrepreneurs across all 25 Sri Lankan districts.
+      <p className="mt-2 text-sm leading-6 text-slate-600">
+        Create a profile to explore work and business opportunities across Sri Lanka.
         </p>
       </div>
 
       {error && (
-        <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 text-xs sm:text-sm rounded-lg flex items-start space-x-2">
+        <div role="alert" className="mb-5 flex items-start gap-2 rounded-xl border border-rose-200 bg-rose-50 p-3.5 text-sm text-rose-800">
           <AlertCircle size={18} className="flex-shrink-0 mt-0.5" />
           <span>{error}</span>
         </div>
@@ -293,4 +293,3 @@ export default function RegisterPage() {
     </div>
   );
 }
-

@@ -3,8 +3,17 @@
 @tailwind utilities;
 
 :root {
-  --foreground-rgb: 17, 24, 39;
-  --background-rgb: 249, 250, 251;
+  color-scheme: light;
+  --foreground-rgb: 21, 32, 51;
+  --background-rgb: 248, 250, 248;
+  --forest: #174b35;
+  --emerald: #3d8051;
+  --gold: #d5ad63;
+}
+
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 6rem;
 }
 
 body {
@@ -14,9 +23,50 @@ body {
   min-height: 100vh;
 }
 
-/* Accessibility: Clear focus rings for touch & keyboard users */
 a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
-  outline: 2px solid #16a34a;
+  outline: 2px solid var(--emerald);
   outline-offset: 2px;
 }
 
+button, a, input, select, textarea {
+  -webkit-tap-highlight-color: transparent;
+}
+
+::selection {
+  color: #fff;
+  background: var(--forest);
+}
+
+.page-width {
+  width: min(100% - 2rem, 80rem);
+  margin-inline: auto;
+}
+
+.surface-card {
+  border: 1px solid #e4e9e4;
+  border-radius: 1.25rem;
+  background: #fff;
+  box-shadow: 0 8px 28px rgb(21 32 51 / 5%);
+}
+
+.reveal {
+  animation: rise-in 550ms both;
+}
+
+.delay-1 { animation-delay: 80ms; }
+.delay-2 { animation-delay: 160ms; }
+.delay-3 { animation-delay: 240ms; }
+
+@keyframes rise-in {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -6,9 +6,11 @@ An MVP monorepo platform designed for Sri Lanka connecting job seekers, verified
 
 ## Architecture & Technology Stack
 
+The application code is separated into two top-level workspaces: `client/` is the frontend and `server/` is the backend. Run either workspace on its own with the frontend/backend commands below, or start both with `npm run dev`.
+
 ```
 rakiya-abimana/
-├── server/                      # Node.js + Express + TypeScript + Prisma + PostgreSQL
+├── server/                      # Backend: Node.js + Express + TypeScript + Prisma + PostgreSQL
 │   ├── prisma/
 │   │   ├── schema.prisma        # Complete PostgreSQL relational schema
 │   │   └── seed.ts              # Seeds 25 districts, master data & demo users for all 7 roles
@@ -18,7 +20,7 @@ rakiya-abimana/
 │   │   ├── middleware/          # Auth JWT cookie check, Role-based route guards, Multer upload
 │   │   └── constants/           # 25 Sri Lanka districts, trades, categories, sectors
 │   └── uploads/                 # Multer storage for Grama Niladhari & business registration proofs
-└── client/                      # Next.js 14 (App Router) + TypeScript + Tailwind CSS
+└── client/                      # Frontend: Next.js 14 (App Router) + TypeScript + Tailwind CSS
     ├── messages/                # Trilingual messages (en.json, si.json, ta.json)
     └── src/
         ├── app/                 # Next.js App Router pages
@@ -63,7 +65,7 @@ All demo accounts share the following password:
 
 ### 2. Configure Environment Files
 
-**Server Environment (`server/.env`)**:
+**Backend Environment (`server/.env`)**:
 ```env
 PORT=5000
 DATABASE_URL="postgresql://postgres:postgres@localhost:5433/jobs_platform"
@@ -75,7 +77,7 @@ VERIFICATION_HOOK="standard" # Pluggable: "gov_live_stub"
 CLIENT_URL="http://localhost:3000"
 ```
 
-**Client Environment (`client/.env.local`)**:
+**Frontend Environment (`client/.env.local`)**:
 ```env
 NEXT_PUBLIC_API_URL=http://localhost:5000/api
 ```
@@ -90,6 +92,7 @@ npm install
 npm run prisma:push --workspace=server
 npm run seed --workspace=server
 ```
+The seed command is safe to rerun: it restores demo account passwords and roles and does not delete existing users or database records.
 
 ### 5. Run Both Server & Client
 ```bash
@@ -98,6 +101,14 @@ npm run dev
 - **Frontend**: [http://localhost:3000](http://localhost:3000)
 - **Backend API**: [http://localhost:5000](http://localhost:5000)
 - **API Health Check**: [http://localhost:5000/api/health](http://localhost:5000/api/health)
+
+To run or build one side independently:
+```bash
+npm run dev:frontend
+npm run dev:backend
+npm run build:frontend
+npm run build:backend
+```
 
 ---
 
@@ -141,4 +152,3 @@ npm run dev
    - Pluggable via setting `TRANSLATION_PROVIDER="google"` and providing `GOOGLE_TRANSLATE_API_KEY` in `server/.env`. Defaults to `MockTranslationProvider`.
 3. **Voice-First Navigation**:
    - Designed for low-literacy users with high-contrast, large touch-target buttons and icons; voice transcription/audio playback endpoints are ready to be integrated as audio modules.
-

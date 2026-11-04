@@ -123,47 +123,26 @@ export default function VerifierQueuePage() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
-        <h1 className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center space-x-2">
-          <FileCheck className="text-amber-700" size={26} />
-          <span>Verifier Review Queue</span>
-        </h1>
-        <p className="text-xs sm:text-sm text-gray-500 mt-1">
-          Inspect encrypted Sri Lankan NICs, Grama Niladhari certificates, DOB match logs, and micro-business pitch proposals.
-        </p>
+    <div className="grid items-start gap-6 lg:grid-cols-[260px_minmax(0,1fr)]">
+      <aside className="surface-card p-5 lg:sticky lg:top-24">
+        <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-accent-50 text-accent-700"><FileCheck size={21} /></span>
+        <p className="mt-5 text-xs font-bold uppercase tracking-[.16em] text-accent-700">Review workspace</p>
+        <h1 className="mt-2 text-xl font-semibold tracking-tight text-slate-950">Verifier queue</h1>
+        <p className="mt-2 text-sm leading-6 text-slate-600">Review identity, business, and proposal submissions.</p>
 
-        {/* Tab switch */}
-        <div className="flex space-x-2 mt-4 pt-4 border-t border-gray-100">
-          <button
-            type="button"
-            onClick={() => setActiveTab("identity")}
-            className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center space-x-2 transition ${
-              activeTab === "identity"
-                ? "bg-amber-700 text-white shadow-sm"
-                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-            }`}
-          >
-            <UserCheck size={16} />
-            <span>Identity & Business Requests ({identityQueue.length})</span>
+        <nav className="mt-6 grid gap-1" aria-label="Verification queue sections">
+          <button type="button" onClick={() => setActiveTab("identity")} aria-current={activeTab === "identity" ? "page" : undefined} className={`flex min-h-11 items-center justify-between gap-2 rounded-xl px-3 text-left text-sm font-semibold transition ${activeTab === "identity" ? "bg-primary-700 text-white shadow-sm" : "text-slate-600 hover:bg-primary-50 hover:text-primary-800"}`}>
+            <span className="flex items-center gap-3"><UserCheck size={17} />Identity & business</span>
+            <span className={`rounded-full px-2 py-0.5 text-xs ${activeTab === "identity" ? "bg-white/15 text-white" : "bg-slate-100 text-slate-600"}`}>{identityQueue.length}</span>
           </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab("pitches")}
-            className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center space-x-2 transition ${
-              activeTab === "pitches"
-                ? "bg-amber-700 text-white shadow-sm"
-                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-            }`}
-          >
-            <TrendingUp size={16} />
-            <span>Pitch Review Queue ({pitchQueue.length})</span>
+          <button type="button" onClick={() => setActiveTab("pitches")} aria-current={activeTab === "pitches" ? "page" : undefined} className={`flex min-h-11 items-center justify-between gap-2 rounded-xl px-3 text-left text-sm font-semibold transition ${activeTab === "pitches" ? "bg-primary-700 text-white shadow-sm" : "text-slate-600 hover:bg-primary-50 hover:text-primary-800"}`}>
+            <span className="flex items-center gap-3"><TrendingUp size={17} />Proposal reviews</span>
+            <span className={`rounded-full px-2 py-0.5 text-xs ${activeTab === "pitches" ? "bg-white/15 text-white" : "bg-slate-100 text-slate-600"}`}>{pitchQueue.length}</span>
           </button>
-        </div>
-      </div>
+        </nav>
+      </aside>
 
+      <div className="min-w-0 space-y-6">
       {/* Tab 1: Identity & Business Verification Queue */}
       {activeTab === "identity" && (
         <div className="space-y-4">
@@ -430,7 +409,7 @@ export default function VerifierQueuePage() {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }
-

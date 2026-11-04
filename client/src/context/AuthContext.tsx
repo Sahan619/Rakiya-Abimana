@@ -36,7 +36,7 @@ export interface User {
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  login: (credentials: { email: string; password: string }) => Promise<void>;
+  login: (credentials: { email: string; password: string }) => Promise<User>;
   register: (data: any) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
@@ -51,7 +51,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType>({
   user: null,
   loading: true,
-  login: async () => {},
+  login: async () => { throw new Error("Authentication is unavailable."); },
   register: async () => {},
   logout: async () => {},
   refreshUser: async () => {},
@@ -96,6 +96,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (res.user.preferredLanguage) {
       setLocale(res.user.preferredLanguage as any);
     }
+    return res.user;
   };
 
   const register = async (data: any) => {
@@ -147,4 +148,3 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 export function useAuth() {
   return useContext(AuthContext);
 }
-

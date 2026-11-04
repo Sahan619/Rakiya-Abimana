@@ -1,23 +1,21 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
-  Briefcase,
-  TrendingUp,
-  MapPin,
-  MessageSquare,
+  ArrowUpRight,
   Bell,
-  ShieldCheck,
-  User,
+  BriefcaseBusiness,
+  ChevronDown,
+  CircleUserRound,
+  Compass,
+  Leaf,
   LogOut,
+  MapPin,
   Menu,
-  X,
-  PlusCircle,
-  ClipboardList,
-  SlidersHorizontal,
-  FileCheck
+  UserRound,
+  X
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useLanguage } from "../context/LanguageContext";
@@ -30,20 +28,24 @@ export function Navbar() {
   const { t } = useLanguage();
   const pathname = usePathname();
   const router = useRouter();
-
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [unreadCount, setUnreadCount] = useState<number>(0);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
-    if (user) {
-      api.get("/notifications")
-        .then((res) => {
-          if (res && res.unreadCount !== undefined) {
-            setUnreadCount(res.unreadCount);
-          }
-        })
-        .catch(() => {});
+    setMobileMenuOpen(false);
+  }, [pathname]);
+
+  useEffect(() => {
+    if (!user) {
+      setUnreadCount(0);
+      return;
     }
+
+    api.get("/notifications")
+      .then((response) => {
+        if (typeof response?.unreadCount === "number") setUnreadCount(response.unreadCount);
+      })
+      .catch((error) => console.error("Failed to load notification count:", error));
   }, [user, pathname]);
 
   const handleLogout = async () => {
@@ -51,333 +53,142 @@ export function Navbar() {
     router.push("/");
   };
 
-  const isActive = (path: string) => {
-    if (path === "/" && pathname === "/") return true;
-    if (path !== "/" && pathname.startsWith(path)) return true;
-    return false;
-  };
-
-  const linkClass = (path: string) =>
-    `flex items-center space-x-1.5 px-3 py-2 rounded-md font-medium text-sm transition-colors ${
-      isActive(path)
-        ? "bg-primary-700 text-white shadow-sm"
-        : "text-gray-700 hover:bg-gray-100 hover:text-gray-900"
+  const isActive = (path: string) => path === "/" ? pathname === "/" : pathname.startsWith(path);
+  const navClass = (path: string) =>
+    `inline-flex min-h-10 items-center gap-2 rounded-xl px-3 text-sm font-medium transition ${
+      isActive(path) ? "bg-primary-50 text-primary-800" : "text-slate-600 hover:bg-slate-50 hover:text-primary-800"
+    }`;
+  const mobileClass = (path: string) =>
+    `flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold transition ${
+      isActive(path) ? "bg-primary-50 text-primary-800" : "text-slate-700 hover:bg-slate-50"
     }`;
 
-  const mobileLinkClass = (path: string) =>
-    `flex items-center space-x-3 px-4 py-3 rounded-lg font-semibold text-base transition-colors ${
-      isActive(path)
-        ? "bg-primary-700 text-white"
-        : "text-gray-800 hover:bg-gray-100"
-    }`;
+  const workspaceLinks = [
+    ...(isJobSeeker ? [{ href: "/jobs/applications", label: t("nav.myApplications", "My applications") }] : []),
+    ...(isEmployer ? [
+      { href: "/jobs/post", label: t("nav.postJob", "Post a job") },
+      { href: "/jobs/my", label: "My job listings" }
+    ] : []),
+    ...(isEntrepreneur ? [
+      { href: "/pitches/create", label: t("nav.createPitch", "Create a proposal") },
+      { href: "/pitches/my", label: "My proposals" }
+    ] : []),
+    ...(user ? [
+      { href: "/inbox", label: t("nav.messages", "Messages") },
+      { href: "/verification", label: t("nav.verification", "Verification") }
+    ] : []),
+    ...(isVerifier ? [{ href: "/verifier", label: t("nav.verifierQueue", "Verification queue") }] : []),
+    ...(isAdmin ? [{ href: "/admin", label: t("nav.adminPanel", "Admin dashboard") }] : [])
+  ];
+
+  const mobileLinks = [
+    { href: "/jobs", label: t("nav.jobs", "Find jobs"), icon: BriefcaseBusiness },
+    { href: "/pitches", label: t("nav.pitches", "Funding"), icon: Leaf },
+    { href: "/nearby", label: t("nav.nearbyJobs", "Nearby jobs"), icon: MapPin },
+    ...workspaceLinks.map((item) => ({ ...item, icon: Compass }))
+  ];
 
   return (
-    <header className="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
-          {/* Brand Logo & Name */}
-          <div className="flex items-center space-x-3">
-            <Link href="/" className="flex items-center space-x-2">
-              <div className="bg-primary-700 text-white p-2 rounded-lg font-black text-xl tracking-wider shadow-sm flex items-center justify-center">
-                🇱🇰
+    <header className="sticky top-0 z-50 border-b border-slate-200/80 bg-white/95 shadow-[0_3px_18px_rgb(21_32_51/4%)] backdrop-blur">
+      <div className="mx-auto flex h-[4.5rem] max-w-7xl items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
+        <Link href="/" className="group flex shrink-0 items-center gap-2.5" aria-label="Rakiya-Abimana home">
+          <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary-700 text-accent-100 shadow-sm transition group-hover:bg-primary-800">
+            <Leaf size={21} strokeWidth={2.2} />
+          </span>
+          <span className="leading-tight">
+            <span className="block text-[15px] font-extrabold tracking-tight text-slate-900 sm:text-base">Rakiya-Abimana</span>
+            <span className="hidden text-[10px] font-medium tracking-wide text-slate-500 sm:block">SKILLS · WORK · GROWTH</span>
+          </span>
+        </Link>
+
+        <nav className="hidden items-center gap-1 lg:flex" aria-label="Main navigation">
+          <Link href="/jobs" className={navClass("/jobs")}>
+            <BriefcaseBusiness size={16} /> {t("nav.jobs", "Find jobs")}
+          </Link>
+          <Link href="/pitches" className={navClass("/pitches")}>
+            <Leaf size={16} /> {t("nav.pitches", "Funding")}
+          </Link>
+          <Link href="/nearby" className={navClass("/nearby")}>
+            <MapPin size={16} /> {t("nav.nearbyJobs", "Nearby")}
+          </Link>
+          {workspaceLinks.length > 0 && (
+            <details className="group relative">
+              <summary className="flex min-h-10 cursor-pointer list-none items-center gap-2 rounded-xl px-3 text-sm font-medium text-slate-600 transition hover:bg-slate-50 hover:text-primary-800 [&::-webkit-details-marker]:hidden">
+                {t("common.workspace", "Workspace")} <ChevronDown size={15} className="transition group-open:rotate-180" />
+              </summary>
+              <div className="absolute right-0 top-full mt-2 w-60 rounded-2xl border border-slate-200 bg-white p-2 shadow-xl shadow-slate-900/10">
+                {workspaceLinks.map((item) => (
+                  <Link key={item.href} href={item.href} className="flex items-center justify-between rounded-xl px-3 py-2.5 text-sm text-slate-700 transition hover:bg-primary-50 hover:text-primary-800">
+                    {item.label}<ArrowUpRight size={14} className="text-slate-400" />
+                  </Link>
+                ))}
               </div>
-              <div>
-                <span className="font-extrabold text-lg sm:text-xl text-gray-900 block leading-tight">
-                  {t("common.appName", "Rakiya Abimana")}
-                </span>
-                <span className="text-[10px] sm:text-xs text-gray-500 hidden sm:block">
-                  {t("common.slogan", "Jobs & Micro-Business Funding (Sri Lanka)")}
-                </span>
-              </div>
-            </Link>
-          </div>
+            </details>
+          )}
+        </nav>
 
-          {/* Desktop Navigation Links */}
-          <nav className="hidden lg:flex items-center space-x-1">
-            <Link href="/jobs" className={linkClass("/jobs")}>
-              <Briefcase size={17} />
-              <span>{t("nav.jobs", "Jobs")}</span>
-            </Link>
-
-            <Link href="/nearby" className={linkClass("/nearby")}>
-              <MapPin size={17} />
-              <span>{t("nav.nearbyJobs", "Nearby")}</span>
-            </Link>
-
-            <Link href="/pitches" className={linkClass("/pitches")}>
-              <TrendingUp size={17} />
-              <span>{t("nav.pitches", "Pitches")}</span>
-            </Link>
-
-            {/* Role specific quick action buttons */}
-            {isEmployer && (
-              <Link href="/jobs/post" className={linkClass("/jobs/post")}>
-                <PlusCircle size={17} className="text-primary-600" />
-                <span>{t("nav.postJob", "Post Job")}</span>
+        <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+          <LanguageSwitcher />
+          {user ? (
+            <>
+              <Link href="/notifications" className="relative flex h-10 w-10 items-center justify-center rounded-xl text-slate-600 transition hover:bg-slate-100 hover:text-primary-800" aria-label={t("nav.notifications", "Notifications")}>
+                <Bell size={19} />
+                {unreadCount > 0 && <span className="absolute right-1 top-1 flex h-[17px] min-w-[17px] items-center justify-center rounded-full bg-rose-600 px-1 text-[10px] font-bold text-white">{unreadCount > 9 ? "9+" : unreadCount}</span>}
               </Link>
-            )}
-
-            {isEntrepreneur && (
-              <Link href="/pitches/create" className={linkClass("/pitches/create")}>
-                <PlusCircle size={17} className="text-primary-600" />
-                <span>{t("nav.createPitch", "Start Pitch")}</span>
-              </Link>
-            )}
-
-            {isJobSeeker && (
-              <Link href="/jobs/applications" className={linkClass("/jobs/applications")}>
-                <ClipboardList size={17} />
-                <span>{t("nav.myApplications", "Applications")}</span>
-              </Link>
-            )}
-
-            {user && (
-              <Link href="/inbox" className={linkClass("/inbox")}>
-                <MessageSquare size={17} />
-                <span>{t("nav.messages", "Inbox")}</span>
-              </Link>
-            )}
-
-            {isVerifier && (
-              <Link href="/verifier" className={linkClass("/verifier")}>
-                <FileCheck size={17} className="text-amber-600" />
-                <span>{t("nav.verifierQueue", "Queue")}</span>
-              </Link>
-            )}
-
-            {isAdmin && (
-              <Link href="/admin" className={linkClass("/admin")}>
-                <SlidersHorizontal size={17} className="text-purple-600" />
-                <span>{t("nav.adminPanel", "Admin")}</span>
-              </Link>
-            )}
-          </nav>
-
-          {/* Right items: Language Switcher, Notifications, User Profile / Auth */}
-          <div className="flex items-center space-x-2 sm:space-x-3">
-            <LanguageSwitcher />
-
-            {user ? (
-              <div className="flex items-center space-x-2">
-                {/* Notification Bell */}
-                <Link
-                  href="/notifications"
-                  className="relative p-2 text-gray-600 hover:text-gray-900 rounded-full hover:bg-gray-100"
-                  title={t("nav.notifications", "Notifications")}
-                >
-                  <Bell size={20} />
-                  {unreadCount > 0 && (
-                    <span className="absolute top-1 right-1 bg-red-600 text-white rounded-full text-[10px] font-bold w-4 h-4 flex items-center justify-center">
-                      {unreadCount}
-                    </span>
-                  )}
-                </Link>
-
-                {/* Profile Link with Verified Badge */}
-                <Link
-                  href="/profile"
-                  className="flex items-center space-x-1.5 p-1.5 rounded-lg hover:bg-gray-100 text-sm text-gray-800"
-                  title="My Profile"
-                >
-                  <div className="w-8 h-8 rounded-full bg-primary-100 text-primary-800 flex items-center justify-center font-bold text-sm">
-                    {user.fullName.charAt(0)}
-                  </div>
-                  <span className="font-semibold hidden md:inline truncate max-w-[120px]">
-                    {user.fullName.split(" ")[0]}
-                  </span>
+              <details className="group relative hidden sm:block">
+                <summary className="flex h-10 cursor-pointer list-none items-center gap-2 rounded-xl px-2 transition hover:bg-slate-50 [&::-webkit-details-marker]:hidden">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary-100 text-sm font-bold text-primary-800">{user.fullName.charAt(0).toUpperCase()}</span>
+                  <span className="hidden max-w-24 truncate text-sm font-semibold text-slate-700 xl:block">{user.fullName.split(" ")[0]}</span>
                   <VerifiedBadge isVerified={user.isVerified} size="sm" showLabel={false} />
-                </Link>
-
-                <button
-                  type="button"
-                  onClick={handleLogout}
-                  className="p-2 text-gray-600 hover:text-red-700 rounded-full hover:bg-red-50 hidden sm:block"
-                  title={t("common.signOut", "Sign Out")}
-                >
-                  <LogOut size={18} />
-                </button>
-              </div>
-            ) : (
-              <div className="hidden sm:flex items-center space-x-2">
-                <Link
-                  href="/login"
-                  className="px-3.5 py-1.5 text-sm font-semibold text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-md"
-                >
-                  {t("common.signIn", "Sign In")}
-                </Link>
-                <Link
-                  href="/register"
-                  className="px-4 py-1.5 text-sm font-semibold text-white bg-primary-700 hover:bg-primary-800 rounded-md shadow-sm"
-                >
-                  {t("common.register", "Register")}
-                </Link>
-              </div>
-            )}
-
-            {/* Mobile menu button */}
-            <button
-              type="button"
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="lg:hidden p-2 text-gray-700 hover:bg-gray-100 rounded-md"
-              aria-label="Toggle menu"
-            >
-              {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
-            </button>
-          </div>
+                  <ChevronDown size={14} className="text-slate-400 transition group-open:rotate-180" />
+                </summary>
+                <div className="absolute right-0 top-full mt-2 w-56 rounded-2xl border border-slate-200 bg-white p-2 shadow-xl shadow-slate-900/10">
+                  <div className="border-b border-slate-100 px-3 py-2">
+                    <p className="truncate text-sm font-semibold text-slate-900">{user.fullName}</p>
+                    <p className="truncate text-xs text-slate-500">{user.email}</p>
+                  </div>
+                  <Link href="/profile" className="mt-1 flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm text-slate-700 hover:bg-slate-50"><UserRound size={16} />{t("common.profile", "My profile")}</Link>
+                  <button type="button" onClick={handleLogout} className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm text-rose-700 hover:bg-rose-50"><LogOut size={16} />{t("common.signOut", "Sign out")}</button>
+                </div>
+              </details>
+            </>
+          ) : (
+            <div className="hidden items-center gap-2 sm:flex">
+              <Link href="/login" className="rounded-xl px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">{t("common.signIn", "Sign in")}</Link>
+              <Link href="/register" className="inline-flex items-center gap-2 rounded-xl bg-primary-700 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-800">
+                {t("common.register", "Get started")}<ArrowUpRight size={15} />
+              </Link>
+            </div>
+          )}
+          <button type="button" onClick={() => setMobileMenuOpen((open) => !open)} className="flex h-10 w-10 items-center justify-center rounded-xl text-slate-700 transition hover:bg-slate-100 lg:hidden" aria-label={mobileMenuOpen ? "Close menu" : "Open menu"} aria-expanded={mobileMenuOpen}>
+            {mobileMenuOpen ? <X size={21} /> : <Menu size={21} />}
+          </button>
         </div>
       </div>
 
-      {/* Mobile Drawer Menu */}
       {mobileMenuOpen && (
-        <div className="lg:hidden border-t border-gray-200 bg-white px-4 pt-3 pb-6 space-y-1 shadow-lg">
-          <Link
-            href="/jobs"
-            onClick={() => setMobileMenuOpen(false)}
-            className={mobileLinkClass("/jobs")}
-          >
-            <Briefcase size={20} />
-            <span>{t("nav.jobs", "Jobs")}</span>
-          </Link>
-
-          <Link
-            href="/nearby"
-            onClick={() => setMobileMenuOpen(false)}
-            className={mobileLinkClass("/nearby")}
-          >
-            <MapPin size={20} />
-            <span>{t("nav.nearbyJobs", "Nearby Jobs")}</span>
-          </Link>
-
-          <Link
-            href="/pitches"
-            onClick={() => setMobileMenuOpen(false)}
-            className={mobileLinkClass("/pitches")}
-          >
-            <TrendingUp size={20} />
-            <span>{t("nav.pitches", "Micro-Business Funding")}</span>
-          </Link>
-
-          {isEmployer && (
-            <Link
-              href="/jobs/post"
-              onClick={() => setMobileMenuOpen(false)}
-              className={mobileLinkClass("/jobs/post")}
-            >
-              <PlusCircle size={20} />
-              <span>{t("nav.postJob", "Post a Job")}</span>
-            </Link>
-          )}
-
-          {isEntrepreneur && (
-            <Link
-              href="/pitches/create"
-              onClick={() => setMobileMenuOpen(false)}
-              className={mobileLinkClass("/pitches/create")}
-            >
-              <PlusCircle size={20} />
-              <span>{t("nav.createPitch", "Start a Pitch")}</span>
-            </Link>
-          )}
-
-          {isJobSeeker && (
-            <Link
-              href="/jobs/applications"
-              onClick={() => setMobileMenuOpen(false)}
-              className={mobileLinkClass("/jobs/applications")}
-            >
-              <ClipboardList size={20} />
-              <span>{t("nav.myApplications", "My Applications")}</span>
-            </Link>
-          )}
-
-          {user && (
-            <>
-              <Link
-                href="/inbox"
-                onClick={() => setMobileMenuOpen(false)}
-                className={mobileLinkClass("/inbox")}
-              >
-                <MessageSquare size={20} />
-                <span>{t("nav.messages", "Inbox & Chat")}</span>
+        <div className="border-t border-slate-200 bg-white px-4 pb-5 pt-3 lg:hidden">
+          <nav className="mx-auto grid max-w-7xl gap-1 sm:grid-cols-2" aria-label="Mobile navigation">
+            {mobileLinks.map(({ href, label, icon: Icon }, index) => (
+              <Link key={`${href}-${index}`} href={href} className={mobileClass(href)}>
+                <Icon size={18} /><span>{label}</span>
               </Link>
-
-              <Link
-                href="/verification"
-                onClick={() => setMobileMenuOpen(false)}
-                className={mobileLinkClass("/verification")}
-              >
-                <ShieldCheck size={20} />
-                <span>{t("nav.verification", "Identity Verification")}</span>
-              </Link>
-
-              <Link
-                href="/profile"
-                onClick={() => setMobileMenuOpen(false)}
-                className={mobileLinkClass("/profile")}
-              >
-                <User size={20} />
-                <span>{t("common.profile", "My Profile")}</span>
-              </Link>
-            </>
-          )}
-
-          {isVerifier && (
-            <Link
-              href="/verifier"
-              onClick={() => setMobileMenuOpen(false)}
-              className={mobileLinkClass("/verifier")}
-            >
-              <FileCheck size={20} />
-              <span>{t("nav.verifierQueue", "Verifier Queue")}</span>
-            </Link>
-          )}
-
-          {isAdmin && (
-            <Link
-              href="/admin"
-              onClick={() => setMobileMenuOpen(false)}
-              className={mobileLinkClass("/admin")}
-            >
-              <SlidersHorizontal size={20} />
-              <span>{t("nav.adminPanel", "Admin Dashboard")}</span>
-            </Link>
-          )}
-
-          <div className="pt-3 border-t border-gray-200">
+            ))}
             {user ? (
-              <button
-                type="button"
-                onClick={() => {
-                  setMobileMenuOpen(false);
-                  handleLogout();
-                }}
-                className="w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-red-700 hover:bg-red-50 font-semibold"
-              >
-                <LogOut size={20} />
-                <span>{t("common.signOut", "Sign Out")}</span>
-              </button>
+              <>
+                <Link href="/profile" className={mobileClass("/profile")}><CircleUserRound size={18} />{t("common.profile", "My profile")}</Link>
+                <Link href="/notifications" className={mobileClass("/notifications")}><Bell size={18} />{t("nav.notifications", "Notifications")}{unreadCount > 0 && <span className="ml-auto rounded-full bg-rose-100 px-2 py-0.5 text-xs text-rose-700">{unreadCount}</span>}</Link>
+                <button type="button" onClick={handleLogout} className="flex items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-semibold text-rose-700 transition hover:bg-rose-50"><LogOut size={18} />{t("common.signOut", "Sign out")}</button>
+              </>
             ) : (
-              <div className="flex flex-col space-y-2 pt-2">
-                <Link
-                  href="/login"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="w-full text-center py-2.5 rounded-lg border border-gray-300 font-bold text-gray-800"
-                >
-                  {t("common.signIn", "Sign In")}
-                </Link>
-                <Link
-                  href="/register"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="w-full text-center py-2.5 rounded-lg bg-primary-700 text-white font-bold"
-                >
-                  {t("common.register", "Register")}
-                </Link>
+              <div className="grid grid-cols-2 gap-2 px-2 pt-2 sm:col-span-2">
+                <Link href="/login" className="rounded-xl border border-slate-200 py-3 text-center text-sm font-semibold text-slate-700">{t("common.signIn", "Sign in")}</Link>
+                <Link href="/register" className="rounded-xl bg-primary-700 py-3 text-center text-sm font-semibold text-white">{t("common.register", "Get started")}</Link>
               </div>
             )}
-          </div>
+          </nav>
         </div>
       )}
     </header>
   );
 }
-

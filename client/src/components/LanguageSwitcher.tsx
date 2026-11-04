@@ -8,30 +8,23 @@ export function LanguageSwitcher() {
   const { locale, setLocale } = useLanguage();
 
   const languages = [
-    { code: "en", label: "English", short: "EN" },
-    { code: "si", label: "සිංහල", short: "සිං" },
-    { code: "ta", label: "தமிழ்", short: "தமி" }
+    { code: "en", label: "English" },
+    { code: "si", label: "සිංහල" },
+    { code: "ta", label: "தமிழ்" }
   ];
 
   return (
-    <div className="flex items-center space-x-1 bg-gray-100 rounded-lg p-1 border border-gray-300">
-      <Globe size={16} className="text-gray-500 ml-1 mr-0.5 hidden sm:inline" />
-      {languages.map((lang) => (
-        <button
-          key={lang.code}
-          type="button"
-          onClick={() => setLocale(lang.code as any)}
-          className={`px-2.5 py-1 text-xs sm:text-sm font-semibold rounded transition-colors ${
-            locale === lang.code
-              ? "bg-primary-700 text-white shadow-sm"
-              : "text-gray-700 hover:bg-gray-200"
-          }`}
-          title={lang.label}
-        >
-          {lang.label}
-        </button>
-      ))}
-    </div>
+    <label className="flex h-10 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-2.5 text-slate-500 transition hover:border-slate-300">
+      <Globe size={16} aria-hidden="true" />
+      <span className="sr-only">Choose language</span>
+      <select
+        value={locale}
+        onChange={(event) => setLocale(event.target.value as "en" | "si" | "ta")}
+        className="max-w-[5.5rem] cursor-pointer border-0 bg-transparent pr-1 text-xs font-semibold text-slate-700 outline-none sm:max-w-none sm:text-sm"
+        aria-label="Choose language"
+      >
+        {languages.map((language) => <option key={language.code} value={language.code}>{language.label}</option>)}
+      </select>
+    </label>
   );
 }
-

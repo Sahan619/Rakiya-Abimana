@@ -1,292 +1,315 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import {
-  Briefcase,
-  TrendingUp,
-  MapPin,
-  Search,
-  ShieldCheck,
-  CheckCircle,
-  Users,
-  Building2,
-  DollarSign,
+  ArrowDown,
   ArrowRight,
-  Sparkles
+  ArrowUpRight,
+  BriefcaseBusiness,
+  Building2,
+  Check,
+  GraduationCap,
+  HandCoins,
+  Languages,
+  MapPin,
+  Sparkles,
+  Sprout,
+  UsersRound
 } from "lucide-react";
 import { useLanguage } from "../context/LanguageContext";
-import { useAuth } from "../context/AuthContext";
 import { api } from "../lib/api";
 import { VerifiedBadge } from "../components/VerifiedBadge";
-import { MachineTranslationNotice } from "../components/MachineTranslationNotice";
+
+interface FeaturedJob {
+  id: string;
+  title: string;
+  category: string;
+  wage: number;
+  wageType: string;
+  createdAt: string;
+  guestRestricted?: boolean;
+  employer?: { companyName?: string; isVerified?: boolean };
+  district?: { nameEn?: string; nameSi?: string; nameTa?: string };
+}
+
+const opportunities = [
+  { icon: BriefcaseBusiness, title: "Find employment", titleKey: "home.featureJobsTitle", text: "Explore open roles and take the next step in your working life.", textKey: "home.featureJobsText", href: "/jobs", tint: "bg-[#eaf2eb] text-[#174b35]" },
+  { icon: UsersRound, title: "Hire skilled workers", titleKey: "home.featureHiringTitle", text: "Share an opening and connect with people ready to contribute.", textKey: "home.featureHiringText", href: "/jobs/post", tint: "bg-[#f5efe2] text-[#9b7131]" },
+  { icon: Sprout, title: "Start a business", titleKey: "home.featureBusinessTitle", text: "Shape your idea into a proposal and make it visible to funders.", textKey: "home.featureBusinessText", href: "/pitches/create", tint: "bg-[#eaf2eb] text-[#3d8051]" },
+  { icon: HandCoins, title: "Explore funding", titleKey: "home.featureFundingTitle", text: "Discover community business proposals and express your interest.", textKey: "home.featureFundingText", href: "/pitches", tint: "bg-[#f5efe2] text-[#9b7131]" },
+  { icon: GraduationCap, title: "Discover training", titleKey: "home.featureTrainingTitle", text: "Find opportunities to develop practical and professional skills.", textKey: "home.featureTrainingText", href: "/register", tint: "bg-[#edf1f7] text-[#526887]" },
+  { icon: MapPin, title: "Find nearby jobs", titleKey: "home.featureNearbyTitle", text: "Browse work opportunities around your district and location.", textKey: "home.featureNearbyText", href: "/nearby", tint: "bg-[#eaf2eb] text-[#174b35]" }
+];
+
+const steps = [
+  ["01", "Create your account", "Choose the role that best describes what you want to do.", "home.step1Title", "home.step1Text"],
+  ["02", "Build your profile", "Share your skills, experience, or business idea.", "home.step2Title", "home.step2Text"],
+  ["03", "Discover opportunities", "Search jobs and proposals across the platform.", "home.step3Title", "home.step3Text"],
+  ["04", "Apply or connect", "Reach out, submit an application, or express interest.", "home.step4Title", "home.step4Text"],
+  ["05", "Grow your future", "Keep building your career or business, one step at a time.", "home.step5Title", "home.step5Text"]
+];
 
 export default function HomePage() {
   const { t, locale } = useLanguage();
-  const { user } = useAuth();
-
-  const [jobs, setJobs] = useState<any[]>([]);
-  const [districts, setDistricts] = useState<any[]>([]);
-  const [selectedDistrict, setSelectedDistrict] = useState<string>("");
-  const [searchTerm, setSearchTerm] = useState<string>("");
-  const [loading, setLoading] = useState<boolean>(true);
+  const [jobs, setJobs] = useState<FeaturedJob[]>([]);
+  const [jobsLoading, setJobsLoading] = useState(true);
+  const [jobsError, setJobsError] = useState("");
 
   useEffect(() => {
-    // Load master districts
-    api.get("/master/districts")
-      .then((res) => {
-        if (res && res.districts) setDistricts(res.districts);
+    let active = true;
+    setJobsLoading(true);
+    setJobsError("");
+    api.get<{ jobs: FeaturedJob[] }>(`/jobs?lang=${locale}`)
+      .then((response) => {
+        if (active) setJobs((response.jobs || []).slice(0, 3));
       })
-      .catch(() => {});
+      .catch((error: Error) => {
+        console.error("Failed to load featured jobs:", error);
+        if (active) setJobsError("We couldn’t load the latest opportunities. Please try again later.");
+      })
+      .finally(() => {
+        if (active) setJobsLoading(false);
+      });
 
-    fetchJobs();
+    return () => { active = false; };
   }, [locale]);
 
-  const fetchJobs = async (districtId = "", search = "") => {
-    setLoading(true);
-    try {
-      const queryParams = new URLSearchParams();
-      if (districtId) queryParams.append("districtId", districtId);
-      if (search) queryParams.append("search", search);
-      queryParams.append("lang", locale);
-
-      const res = await api.get(`/jobs?${queryParams.toString()}`);
-      if (res && res.jobs) {
-        setJobs(res.jobs);
-      }
-    } catch (err) {
-      console.error("Error loading jobs:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    fetchJobs(selectedDistrict, searchTerm);
+  const districtName = (job: FeaturedJob) => {
+    if (locale === "si") return job.district?.nameSi || job.district?.nameEn || "Sri Lanka";
+    if (locale === "ta") return job.district?.nameTa || job.district?.nameEn || "Sri Lanka";
+    return job.district?.nameEn || "Sri Lanka";
   };
 
   return (
-    <div className="space-y-8">
-      {/* Hero Banner with Big Accessible CTA Buttons */}
-      <section className="bg-gradient-to-r from-emerald-800 to-teal-900 text-white rounded-2xl p-6 sm:p-10 shadow-lg">
-        <div className="max-w-3xl space-y-4">
-          <div className="inline-flex items-center space-x-2 bg-emerald-700/60 border border-emerald-500/40 px-3 py-1 rounded-full text-xs sm:text-sm font-semibold">
-            <span>🇱🇰 Sri Lanka National Workforce & Micro-Enterprise Portal</span>
-          </div>
-          <h1 className="text-2xl sm:text-4xl font-extrabold tracking-tight leading-snug">
-            {t("common.platformTitle", "Jobs & Micro-Business Funding Platform")}
-          </h1>
-          <p className="text-emerald-100 text-sm sm:text-base leading-relaxed">
-            {t("common.slogan", "Empowering Sri Lankan Workers & Local Entrepreneurs")} — Find verified local employment, discover nearby jobs by distance, and connect grass-roots micro-businesses with ethical funders.
-          </p>
-
-          {/* Big Action Buttons (Optimized for Low-Literacy / Mobile) */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-4">
-            <Link
-              href="/jobs"
-              className="flex items-center justify-center space-x-2 bg-white text-emerald-900 font-bold px-5 py-3.5 rounded-xl shadow hover:bg-emerald-50 text-base transition-transform active:scale-95"
-            >
-              <Briefcase className="text-emerald-700" size={22} />
-              <span>{t("nav.jobs", "Browse Jobs")}</span>
-            </Link>
-
-            <Link
-              href="/nearby"
-              className="flex items-center justify-center space-x-2 bg-emerald-600 text-white font-bold px-5 py-3.5 rounded-xl shadow hover:bg-emerald-500 text-base transition-transform active:scale-95"
-            >
-              <MapPin size={22} />
-              <span>{t("nav.nearbyJobs", "Nearby Jobs (GPS)")}</span>
-            </Link>
-
-            <Link
-              href="/pitches"
-              className="flex items-center justify-center space-x-2 bg-teal-700 text-white font-bold px-5 py-3.5 rounded-xl shadow hover:bg-teal-600 text-base transition-transform active:scale-95"
-            >
-              <TrendingUp size={22} />
-              <span>{t("nav.pitches", "Micro-Funding")}</span>
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* Trust & Verification Highlight Strip */}
-      <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-white border border-gray-200 p-4 rounded-xl flex items-start space-x-3 shadow-sm">
-          <div className="p-2.5 bg-emerald-100 text-emerald-800 rounded-lg">
-            <ShieldCheck size={24} />
-          </div>
-          <div>
-            <h2 className="font-bold text-gray-900 text-sm sm:text-base">Identity & DOB Verified</h2>
-            <p className="text-gray-600 text-xs mt-0.5">Automated NIC format & date of birth check with Grama Niladhari proof.</p>
-          </div>
-        </div>
-
-        <div className="bg-white border border-gray-200 p-4 rounded-xl flex items-start space-x-3 shadow-sm">
-          <div className="p-2.5 bg-blue-100 text-blue-800 rounded-lg">
-            <MapPin size={24} />
-          </div>
-          <div>
-            <h2 className="font-bold text-gray-900 text-sm sm:text-base">All 25 Districts Covered</h2>
-            <p className="text-gray-600 text-xs mt-0.5">Haversine formula geospatial matching finds opportunities right in your neighborhood.</p>
-          </div>
-        </div>
-
-        <div className="bg-white border border-gray-200 p-4 rounded-xl flex items-start space-x-3 shadow-sm">
-          <div className="p-2.5 bg-purple-100 text-purple-800 rounded-lg">
-            <Sparkles size={24} />
-          </div>
-          <div>
-            <h2 className="font-bold text-gray-900 text-sm sm:text-base">Trilingual Translation</h2>
-            <p className="text-gray-600 text-xs mt-0.5">Automated in-app translation into Sinhala, Tamil, and English.</p>
-          </div>
-        </div>
-      </section>
-
-      {/* Job Search & Filter Bar */}
-      <section className="bg-white border border-gray-200 rounded-xl p-4 sm:p-6 shadow-sm space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-gray-100 pb-3">
-          <h2 className="text-lg sm:text-xl font-bold text-gray-900 flex items-center space-x-2">
-            <Briefcase className="text-primary-600" size={20} />
-            <span>{t("jobs.title", "Available Jobs Across Sri Lanka")}</span>
-          </h2>
-          {!user && (
-            <span className="text-xs bg-amber-100 text-amber-900 px-3 py-1 rounded-full font-medium">
-              {t("jobs.guestNotice", "Guests see limited information. Sign in to apply.")}
-            </span>
-          )}
-        </div>
-
-        <form onSubmit={handleSearch} className="grid grid-cols-1 sm:grid-cols-12 gap-3">
-          <div className="sm:col-span-6 relative">
-            <Search className="absolute left-3 top-3 text-gray-400" size={18} />
-            <input
-              type="text"
-              placeholder={t("jobs.searchPlaceholder", "Search jobs by title or skills...")}
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-primary-500 focus:border-primary-500"
-            />
+    <div className="-mx-4 -mt-8 space-y-0 overflow-hidden bg-[#f8faf8] sm:-mx-6 lg:-mx-8">
+      <section className="relative isolate overflow-hidden bg-[#f3f6f1]">
+        <div className="absolute -right-32 -top-40 -z-10 h-[34rem] w-[34rem] rounded-full border-[1px] border-[#174b35]/10" />
+        <div className="absolute -right-20 -top-28 -z-10 h-[28rem] w-[28rem] rounded-full border-[1px] border-[#174b35]/10" />
+        <div className="page-width grid min-h-[600px] items-center gap-12 py-16 sm:py-20 lg:grid-cols-[1.05fr_.95fr] lg:py-24">
+          <div className="reveal">
+            <div className="inline-flex items-center gap-2 rounded-full border border-primary-200 bg-white/80 px-3.5 py-2 text-xs font-semibold text-primary-800 shadow-sm">
+              <span className="h-2 w-2 rounded-full bg-accent-500" />
+              {t("home.heroEyebrow", "A place for Sri Lankan talent to grow")}
+            </div>
+            <h1 className="mt-7 max-w-3xl text-4xl font-semibold leading-[1.08] tracking-[-0.04em] text-slate-950 sm:text-5xl lg:text-[4.25rem]">
+              {t("home.heroTitle", "Empowering Skills. Creating Opportunities.")}
+            </h1>
+            <p className="mt-6 max-w-xl text-base leading-7 text-slate-600 sm:text-lg sm:leading-8">
+              {t("home.heroDescription", "Discover meaningful work, connect with skilled people, and explore ways to grow a small business—all in one place.")}
+            </p>
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+              <Link href="/jobs" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-primary-700 px-5 text-sm font-semibold text-white shadow-lg shadow-primary-900/10 transition hover:-translate-y-0.5 hover:bg-primary-800">
+                {t("home.exploreJobs", "Explore jobs")}<ArrowRight size={17} />
+              </Link>
+              <Link href="/pitches" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-5 text-sm font-semibold text-slate-800 transition hover:-translate-y-0.5 hover:border-primary-300 hover:bg-primary-50">
+                {t("home.exploreFunding", "Explore funding")}<ArrowUpRight size={16} />
+              </Link>
+            </div>
+            <div className="mt-8 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs font-medium text-slate-500">
+              <span className="inline-flex items-center gap-1.5"><Check size={14} className="text-primary-700" />For job seekers and employers</span>
+              <span className="inline-flex items-center gap-1.5"><Check size={14} className="text-primary-700" />For entrepreneurs and funders</span>
+            </div>
           </div>
 
-          <div className="sm:col-span-4">
-            <select
-              value={selectedDistrict}
-              onChange={(e) => {
-                setSelectedDistrict(e.target.value);
-                fetchJobs(e.target.value, searchTerm);
-              }}
-              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-primary-500 focus:border-primary-500 bg-white"
-            >
-              <option value="">{t("common.allDistricts", "All 25 Districts")}</option>
-              {districts.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {locale === "si" ? d.nameSi : locale === "ta" ? d.nameTa : d.nameEn} ({d.province})
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="sm:col-span-2">
-            <button
-              type="submit"
-              className="w-full bg-primary-700 hover:bg-primary-800 text-white font-bold py-2.5 px-4 rounded-lg text-sm shadow transition"
-            >
-              {t("common.search", "Search")}
-            </button>
-          </div>
-        </form>
-      </section>
-
-      {/* Jobs Listing Grid */}
-      <section className="space-y-4">
-        {loading ? (
-          <div className="text-center py-12 text-gray-500 font-medium">
-            {t("common.loading", "Loading jobs across Sri Lanka...")}
-          </div>
-        ) : jobs.length === 0 ? (
-          <div className="text-center py-12 bg-white rounded-xl border border-dashed border-gray-300">
-            <Briefcase className="mx-auto text-gray-300 mb-2" size={36} />
-            <p className="text-gray-600 font-semibold">No job listings found for the selected filter.</p>
-            <p className="text-gray-400 text-xs mt-1">Try selecting another district or removing search terms.</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {jobs.map((job) => (
-              <div
-                key={job.id}
-                className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between"
-              >
+          <div className="reveal delay-2 relative mx-auto w-full max-w-[520px]">
+            <div className="absolute -left-7 top-16 h-28 w-28 rounded-full bg-[#d5ad63]/20 blur-2xl" />
+            <div className="absolute -bottom-5 right-4 h-40 w-40 rounded-full bg-primary-200/50 blur-3xl" />
+            <div className="relative rounded-[2rem] border border-white bg-white/85 p-4 shadow-[0_30px_90px_rgb(23_75_53/14%)] backdrop-blur sm:p-6">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-4">
                 <div>
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <span className="inline-block bg-primary-50 text-primary-800 border border-primary-200 text-xs font-bold px-2.5 py-0.5 rounded uppercase">
-                        {job.category}
-                      </span>
-                      <h3 className="font-bold text-lg text-gray-900 mt-1.5 leading-snug">
-                        {job.title}
-                      </h3>
-                    </div>
-                    <VerifiedBadge isVerified={job.employer?.isVerified} size="sm" />
-                  </div>
-
-                  {job.isMachineTranslated && (
-                    <span className="inline-block text-[10px] text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded mt-1">
-                      {t("common.machineTranslated", "Machine Translated")}
-                    </span>
-                  )}
-
-                  <div className="mt-3 text-xs text-gray-600 flex flex-wrap items-center gap-x-4 gap-y-1">
-                    <span className="flex items-center space-x-1">
-                      <Building2 size={14} className="text-gray-400" />
-                      <span className="font-medium">{job.employer?.companyName}</span>
-                    </span>
-                    <span className="flex items-center space-x-1">
-                      <MapPin size={14} className="text-gray-400" />
-                      <span>{job.district?.nameEn || "Sri Lanka"}</span>
-                    </span>
-                    <span className="flex items-center space-x-1 text-emerald-800 font-bold">
-                      <DollarSign size={14} />
-                      <span>
-                        Rs. {job.wage?.toLocaleString()} / {job.wageType}
-                      </span>
-                    </span>
-                  </div>
-
-                  {job.description && (
-                    <p className="text-gray-600 text-xs mt-2 line-clamp-2 leading-relaxed">
-                      {job.description}
-                    </p>
-                  )}
+                  <p className="text-xs font-medium uppercase tracking-[.15em] text-slate-400">Opportunity board</p>
+                  <p className="mt-1 text-lg font-semibold text-slate-900">A path forward</p>
                 </div>
-
-                <div className="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between">
-                  {job.guestRestricted ? (
-                    <Link
-                      href="/login"
-                      className="text-xs font-bold text-primary-700 hover:text-primary-800 flex items-center space-x-1"
-                    >
-                      <span>{t("jobs.signInToApply", "Sign in as Job Seeker to apply")}</span>
-                      <ArrowRight size={14} />
-                    </Link>
-                  ) : (
-                    <Link
-                      href={`/jobs/${job.id}`}
-                      className="text-xs font-bold bg-primary-700 hover:bg-primary-800 text-white px-3.5 py-2 rounded-lg transition"
-                    >
-                      {t("jobs.applyNow", "View & Apply")}
-                    </Link>
-                  )}
-                  <span className="text-[11px] text-gray-400">
-                    {new Date(job.createdAt).toLocaleDateString()}
-                  </span>
+                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-50 text-primary-700"><Sparkles size={20} /></span>
+              </div>
+              <div className="space-y-3 py-5">
+                <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+                  <div className="flex items-start gap-3">
+                    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary-50 text-primary-700"><BriefcaseBusiness size={20} /></span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[11px] font-semibold uppercase tracking-wide text-primary-700">Employment</p>
+                      <p className="mt-1 font-semibold text-slate-900">Find work that fits your skills</p>
+                      <p className="mt-1 text-xs text-slate-500">Search by role, district, and more</p>
+                    </div>
+                    <ArrowUpRight size={16} className="text-slate-400" />
+                  </div>
+                </div>
+                <div className="ml-5 rounded-2xl border border-[#f0e5d1] bg-[#fdfaf4] p-4 sm:ml-12">
+                  <div className="flex items-start gap-3">
+                    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#f4ead7] text-[#9b7131]"><Sprout size={20} /></span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[11px] font-semibold uppercase tracking-wide text-[#9b7131]">Entrepreneurship</p>
+                      <p className="mt-1 font-semibold text-slate-900">Turn your idea into a proposal</p>
+                      <p className="mt-1 text-xs text-slate-500">Share your plans with potential funders</p>
+                    </div>
+                    <ArrowUpRight size={16} className="text-slate-400" />
+                  </div>
                 </div>
               </div>
+              <div className="flex items-center justify-between rounded-xl bg-primary-700 px-4 py-3.5 text-white">
+                <span className="text-sm font-medium">Start with one opportunity</span><ArrowRight size={17} />
+              </div>
+            </div>
+            <div className="absolute -bottom-5 -left-4 hidden items-center gap-3 rounded-2xl border border-slate-100 bg-white px-4 py-3 shadow-lg sm:flex">
+              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#f4ead7] text-[#9b7131]"><Languages size={18} /></span>
+              <span className="text-xs font-semibold text-slate-700">English · සිංහල · தமிழ்</span>
+            </div>
+          </div>
+        </div>
+        <a href="#opportunities" className="mx-auto mb-7 flex w-fit items-center gap-2 text-xs font-semibold text-slate-500 transition hover:text-primary-800">
+          Discover what you can do <ArrowDown size={14} />
+        </a>
+      </section>
+
+      <section id="opportunities" className="scroll-mt-24 py-20 sm:py-24">
+        <div className="page-width">
+          <div className="mx-auto max-w-2xl text-center">
+            <p className="text-xs font-bold uppercase tracking-[.18em] text-primary-700">{t("home.opportunitiesEyebrow", "One platform, many paths")}</p>
+            <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">{t("home.opportunitiesTitle", "Make your next move")}</h2>
+            <p className="mt-4 text-sm leading-6 text-slate-600 sm:text-base">{t("home.opportunitiesDescription", "Whether you are looking for work, building a team, or growing a business, find a starting point here.")}</p>
+          </div>
+          <div className="mt-11 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {opportunities.map(({ icon: Icon, title, titleKey, text, textKey, href, tint }, index) => (
+              <Link key={title} href={href} className={`surface-card group reveal p-6 transition duration-200 hover:-translate-y-1 hover:border-primary-200 hover:shadow-[0_16px_40px_rgb(23_75_53/9%)] ${index > 2 ? "delay-1" : ""}`}>
+                <span className={`flex h-12 w-12 items-center justify-center rounded-2xl ${tint}`}><Icon size={22} /></span>
+                <h3 className="mt-5 text-lg font-semibold text-slate-900">{t(titleKey, title)}</h3>
+                <p className="mt-2 text-sm leading-6 text-slate-600">{t(textKey, text)}</p>
+                <span className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-primary-800">{t("home.explore", "Explore")}<ArrowRight size={15} className="transition group-hover:translate-x-1" /></span>
+              </Link>
             ))}
           </div>
-        )}
+        </div>
+      </section>
+
+      <section className="bg-white py-20 sm:py-24">
+        <div className="page-width">
+          <div className="mx-auto max-w-2xl text-center">
+            <p className="text-xs font-bold uppercase tracking-[.18em] text-primary-700">{t("home.stepsEyebrow", "How it works")}</p>
+            <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">{t("home.stepsTitle", "A few steps to get started")}</h2>
+            <p className="mt-4 text-sm leading-6 text-slate-600 sm:text-base">{t("home.stepsDescription", "Create a profile, find what fits, and connect with the people who can help you move forward.")}</p>
+          </div>
+          <ol className="relative mt-12 grid gap-8 sm:grid-cols-2 lg:grid-cols-5 lg:gap-4">
+            <div className="absolute left-[8%] right-[8%] top-6 hidden h-px bg-primary-100 lg:block" />
+            {steps.map(([number, title, text, titleKey, textKey]) => (
+              <li key={number} className="relative flex gap-4 lg:flex-col lg:items-center lg:text-center">
+                <span className="z-10 flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-primary-100 bg-white text-sm font-bold text-primary-800 shadow-sm">{number}</span>
+                <div className="lg:pt-1">
+                  <h3 className="font-semibold text-slate-900">{t(titleKey, title)}</h3>
+                  <p className="mt-2 text-sm leading-6 text-slate-600">{t(textKey, text)}</p>
+                </div>
+              </li>
+            ))}
+          </ol>
+        </div>
+      </section>
+
+      <section className="py-20 sm:py-24">
+        <div className="page-width">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[.18em] text-primary-700">{t("home.jobsEyebrow", "Live opportunities")}</p>
+              <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">{t("home.jobsTitle", "Featured jobs")}</h2>
+              <p className="mt-3 max-w-xl text-sm leading-6 text-slate-600">{t("home.jobsDescription", "Recent openings from employers on the platform. Explore the full list to find a role that fits.")}</p>
+            </div>
+            <Link href="/jobs" className="inline-flex w-fit items-center gap-2 text-sm font-semibold text-primary-800 transition hover:gap-3">{t("home.browseJobs", "Browse all jobs")}<ArrowRight size={16} /></Link>
+          </div>
+
+          {jobsLoading ? (
+            <div className="mt-9 grid gap-4 md:grid-cols-3" aria-label="Loading featured jobs">
+              {[0, 1, 2].map((item) => <div key={item} className="surface-card h-56 animate-pulse bg-slate-100" />)}
+            </div>
+          ) : jobsError ? (
+            <div role="status" className="mt-9 rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-900">{jobsError}<Link href="/jobs" className="ml-2 font-semibold underline">Browse jobs</Link></div>
+          ) : jobs.length === 0 ? (
+            <div className="mt-9 rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center">
+              <BriefcaseBusiness className="mx-auto text-slate-300" size={30} />
+              <p className="mt-3 font-semibold text-slate-800">{t("home.noOpenJobs", "There are no open roles to feature right now.")}</p>
+              <Link href="/jobs" className="mt-3 inline-flex items-center gap-2 text-sm font-semibold text-primary-800">Explore jobs<ArrowRight size={15} /></Link>
+            </div>
+          ) : (
+            <div className="mt-9 grid gap-4 md:grid-cols-3">
+              {jobs.map((job, index) => (
+                <article key={job.id} className={`surface-card reveal flex flex-col p-5 transition duration-200 hover:-translate-y-1 hover:shadow-[0_16px_40px_rgb(23_75_53/9%)] ${index === 1 ? "delay-1" : index === 2 ? "delay-2" : ""}`}>
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary-50 text-primary-700"><Building2 size={20} /></span>
+                    <VerifiedBadge isVerified={job.employer?.isVerified} size="sm" />
+                  </div>
+                  <span className="mt-5 text-[11px] font-bold uppercase tracking-wide text-primary-700">{job.category}</span>
+                  <h3 className="mt-1 text-lg font-semibold leading-snug text-slate-900">{job.title}</h3>
+                  <p className="mt-2 text-sm text-slate-500">{job.employer?.companyName || "Employer"} · {districtName(job)}</p>
+                  <div className="mt-5 flex items-center justify-between border-t border-slate-100 pt-4">
+                    <p className="text-sm font-semibold text-slate-900">LKR {job.wage?.toLocaleString()} <span className="font-normal text-slate-500">/ {job.wageType?.toLowerCase()}</span></p>
+                    <Link href={job.guestRestricted ? "/login" : `/jobs/${job.id}`} className="inline-flex items-center gap-1 text-sm font-semibold text-primary-800 hover:text-primary-600">
+                      View role<ArrowRight size={15} />
+                    </Link>
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
+
+      <section className="bg-[#173e2e] py-20 text-white sm:py-24">
+        <div className="page-width grid items-center gap-10 lg:grid-cols-[1fr_.85fr]">
+          <div>
+            <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10 text-[#e2c382]"><HandCoins size={23} /></span>
+            <p className="mt-6 text-xs font-bold uppercase tracking-[.18em] text-[#e2c382]">{t("home.fundingEyebrow", "Business & funding")}</p>
+            <h2 className="mt-3 max-w-xl text-3xl font-semibold tracking-tight sm:text-4xl">{t("home.fundingTitle", "Ideas grow stronger when the right people can see them.")}</h2>
+            <p className="mt-5 max-w-xl text-sm leading-7 text-white/70 sm:text-base">{t("home.fundingDescription", "Entrepreneurs can share business proposals and funding needs. Funders can discover projects and express interest. Any financing arrangements take place outside the platform.")}</p>
+            <Link href="/pitches" className="mt-8 inline-flex min-h-12 items-center gap-2 rounded-xl bg-white px-5 text-sm font-semibold text-primary-800 transition hover:bg-[#f5efe2]">{t("home.fundingCta", "Explore business proposals")}<ArrowRight size={16} /></Link>
+          </div>
+          <div className="rounded-[1.75rem] border border-white/10 bg-white/[.06] p-6 sm:p-8">
+            <div className="flex items-center gap-3 border-b border-white/10 pb-5">
+              <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#d5ad63]/15 text-[#e2c382]"><Sprout size={21} /></span>
+              <div><p className="font-semibold">From an idea to a connection</p><p className="mt-1 text-xs text-white/55">A simple way to share what you are building</p></div>
+            </div>
+            <ol className="mt-5 space-y-4">
+              {["Describe your business and goals", "Submit a proposal for review", "Help interested funders find your idea"].map((item, index) => (
+                <li key={item} className="flex items-center gap-3 text-sm text-white/80">
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-white/20 text-xs font-semibold text-[#e2c382]">0{index + 1}</span>{item}
+                </li>
+              ))}
+            </ol>
+          </div>
+        </div>
+      </section>
+
+      <section className="py-20 sm:py-24">
+        <div className="page-width grid items-center gap-10 lg:grid-cols-[.8fr_1.2fr]">
+          <div>
+            <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#f5efe2] text-[#9b7131]"><Languages size={23} /></span>
+            <p className="mt-6 text-xs font-bold uppercase tracking-[.18em] text-primary-700">{t("home.languageEyebrow", "Designed for many voices")}</p>
+            <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">{t("home.languageTitle", "Opportunities in your language.")}</h2>
+            <p className="mt-4 text-sm leading-7 text-slate-600 sm:text-base">{t("home.languageDescription", "Choose English, Sinhala, or Tamil as you explore. The platform’s translation support helps make job posts and conversations more accessible across languages.")}</p>
+            <div className="mt-6 flex flex-wrap gap-2">
+              {["English", "සිංහල", "தமிழ்"].map((language) => <span key={language} className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700">{language}</span>)}
+            </div>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="surface-card p-5 sm:translate-y-6"><span className="text-xs font-bold uppercase tracking-wide text-primary-700">01 · Choose</span><p className="mt-3 text-lg font-semibold text-slate-900">Set your preferred language</p><p className="mt-2 text-sm leading-6 text-slate-600">Switch languages from the navigation whenever you need.</p></div>
+            <div className="surface-card bg-[#fdfaf4] p-5"><span className="text-xs font-bold uppercase tracking-wide text-[#9b7131]">02 · Explore</span><p className="mt-3 text-lg font-semibold text-slate-900">Read with more context</p><p className="mt-2 text-sm leading-6 text-slate-600">Machine translations are labelled, and original content remains available.</p></div>
+          </div>
+        </div>
+      </section>
+
+      <section className="px-4 pb-20 sm:px-6 sm:pb-24">
+        <div className="page-width relative overflow-hidden rounded-[2rem] bg-[#f1eadb] px-6 py-12 sm:px-12 sm:py-16">
+          <div className="absolute -right-20 -top-24 h-72 w-72 rounded-full border border-[#9b7131]/15" />
+          <div className="relative flex flex-col items-start justify-between gap-7 md:flex-row md:items-center">
+            <div className="max-w-2xl">
+              <p className="text-xs font-bold uppercase tracking-[.18em] text-[#8b652f]">{t("home.finalEyebrow", "Your next chapter starts here")}</p>
+              <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">{t("home.finalTitle", "Your Skills Deserve an Opportunity.")}</h2>
+              <p className="mt-4 max-w-xl text-sm leading-6 text-slate-700">{t("home.finalDescription", "Explore jobs, share your experience, or take the first step towards building a business.")}</p>
+            </div>
+            <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
+              <Link href="/jobs" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-primary-700 px-5 text-sm font-semibold text-white transition hover:bg-primary-800">{t("home.findJobs", "Find jobs")}<ArrowRight size={16} /></Link>
+              <Link href="/register" className="inline-flex min-h-12 items-center justify-center rounded-xl border border-[#c7b58e] bg-white/70 px-5 text-sm font-semibold text-slate-800 transition hover:bg-white">{t("home.getStarted", "Get started")}</Link>
+            </div>
+          </div>
+        </div>
       </section>
     </div>
   );
 }
-

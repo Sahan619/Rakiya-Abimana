@@ -3,6 +3,7 @@ import "./globals.css";
 import { LanguageProvider } from "../context/LanguageContext";
 import { AuthProvider } from "../context/AuthContext";
 import { Navbar } from "../components/Navbar";
+import { SiteFooter } from "../components/SiteFooter";
 
 export const metadata: Metadata = {
   title: "Rakiya Abimana | Jobs & Micro-Business Funding Platform (Sri Lanka)",
@@ -16,29 +17,17 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className="flex flex-col min-h-screen">
+      <body className="flex min-h-screen flex-col">
         <LanguageProvider>
           <AuthProvider>
             <Navbar />
-            <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:px-6 lg:px-8">
               {children}
             </main>
-            <footer className="bg-gray-900 text-gray-300 py-8 border-t border-gray-800 text-sm">
-              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-4">
-                <div>
-                  <p className="font-bold text-white text-base">🇱🇰 Rakiya Abimana Platform (Sri Lanka)</p>
-                  <p className="text-gray-400 text-xs mt-1">Connecting Job Seekers, Verified Employers, Micro-Business Entrepreneurs & Funders.</p>
-                </div>
-                <div className="text-xs text-gray-400 text-center md:text-right">
-                  <p>English • සිංහල • தமிழ்</p>
-                  <p className="mt-1">Identity & Business Verified • AES-256 Protected • Zero Platform Financial Transactions</p>
-                </div>
-              </div>
-            </footer>
+            <SiteFooter />
           </AuthProvider>
         </LanguageProvider>
       </body>
     </html>
   );
 }
-
