@@ -1,10 +1,22 @@
 import { PrismaClient, Role, VerificationStatus, PitchStatus, JobStatus, ApplicationStatus, FundingType } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import dotenv from "dotenv";
+import path from "path";
 import { SRI_LANKA_DISTRICTS } from "../src/constants/districts";
 import { DEFAULT_JOB_CATEGORIES, DEFAULT_SECTORS, DEFAULT_SYSTEM_SETTINGS } from "../src/constants/masterData";
 import { encryptData } from "../src/services/crypto.service";
 
+dotenv.config({ path: path.resolve(__dirname, "../.env") });
+
 const prisma = new PrismaClient();
+
+async function ensureDemoRole(userId: string, role: Role) {
+  await prisma.userRole.upsert({
+    where: { userId_role: { userId, role } },
+    update: {},
+    create: { userId, role }
+  });
+}
 
 async function main() {
   console.log("Starting seed process for Sri Lanka Jobs & Micro-Business Funding Platform...");
@@ -64,7 +76,7 @@ async function main() {
   // Admin
   const admin = await prisma.user.upsert({
     where: { email: "admin@rakiya.lk" },
-    update: {},
+    update: { passwordHash, isActive: true },
     create: {
       email: "admin@rakiya.lk",
       passwordHash,
@@ -79,11 +91,12 @@ async function main() {
       roles: { create: [{ role: Role.Admin }] }
     }
   });
+  await ensureDemoRole(admin.id, Role.Admin);
 
   // Verifier
   const verifier = await prisma.user.upsert({
     where: { email: "verifier@rakiya.lk" },
-    update: {},
+    update: { passwordHash, isActive: true },
     create: {
       email: "verifier@rakiya.lk",
       passwordHash,
@@ -98,12 +111,13 @@ async function main() {
       roles: { create: [{ role: Role.Verifier }] }
     }
   });
+  await ensureDemoRole(verifier.id, Role.Verifier);
 
   // JobSeeker 1 - Kamal (Colombo)
   const kamalDob = new Date("1992-03-24"); // day 84 in 1992
   const kamal = await prisma.user.upsert({
     where: { email: "kamal.seeker@rakiya.lk" },
-    update: {},
+    update: { passwordHash, isActive: true },
     create: {
       email: "kamal.seeker@rakiya.lk",
       passwordHash,
@@ -127,6 +141,7 @@ async function main() {
       }
     }
   });
+  await ensureDemoRole(kamal.id, Role.JobSeeker);
 
   // Kamal's verification record
   await prisma.verificationRequest.upsert({
@@ -146,7 +161,7 @@ async function main() {
   // JobSeeker 2 - Priya (Jaffna)
   const priya = await prisma.user.upsert({
     where: { email: "priya.seeker@rakiya.lk" },
-    update: {},
+    update: { passwordHash, isActive: true },
     create: {
       email: "priya.seeker@rakiya.lk",
       passwordHash,
@@ -170,11 +185,12 @@ async function main() {
       }
     }
   });
+  await ensureDemoRole(priya.id, Role.JobSeeker);
 
   // Employer - Sunil (Gampaha, Verified)
   const sunil = await prisma.user.upsert({
     where: { email: "sunil.employer@rakiya.lk" },
-    update: {},
+    update: { passwordHash, isActive: true },
     create: {
       email: "sunil.employer@rakiya.lk",
       passwordHash,
@@ -197,6 +213,7 @@ async function main() {
       }
     }
   });
+  await ensureDemoRole(sunil.id, Role.Employer);
 
   await prisma.verificationRequest.upsert({
     where: { userId: sunil.id },
@@ -215,7 +232,7 @@ async function main() {
   // Entrepreneur 1 - Anura (Kandy, Verified with approved pitch)
   const anura = await prisma.user.upsert({
     where: { email: "anura.entrepreneur@rakiya.lk" },
-    update: {},
+    update: { passwordHash, isActive: true },
     create: {
       email: "anura.entrepreneur@rakiya.lk",
       passwordHash,
@@ -230,6 +247,7 @@ async function main() {
       roles: { create: [{ role: Role.Entrepreneur }] }
     }
   });
+  await ensureDemoRole(anura.id, Role.Entrepreneur);
 
   await prisma.verificationRequest.upsert({
     where: { userId: anura.id },
@@ -248,7 +266,7 @@ async function main() {
   // Entrepreneur 2 - Fatima (Galle, Pending Verification)
   const fatima = await prisma.user.upsert({
     where: { email: "fatima.entrepreneur@rakiya.lk" },
-    update: {},
+    update: { passwordHash, isActive: true },
     create: {
       email: "fatima.entrepreneur@rakiya.lk",
       passwordHash,
@@ -263,6 +281,7 @@ async function main() {
       roles: { create: [{ role: Role.Entrepreneur }] }
     }
   });
+  await ensureDemoRole(fatima.id, Role.Entrepreneur);
 
   await prisma.verificationRequest.upsert({
     where: { userId: fatima.id },
@@ -279,7 +298,7 @@ async function main() {
   // Funder - Lanka Funder (CSR Business)
   const funder = await prisma.user.upsert({
     where: { email: "lanka.funder@rakiya.lk" },
-    update: {},
+    update: { passwordHash, isActive: true },
     create: {
       email: "lanka.funder@rakiya.lk",
       passwordHash,
@@ -301,11 +320,12 @@ async function main() {
       }
     }
   });
+  await ensureDemoRole(funder.id, Role.Funder);
 
   // Training Provider
-  await prisma.user.upsert({
+  const trainingProvider = await prisma.user.upsert({
     where: { email: "vocational.training@rakiya.lk" },
-    update: {},
+    update: { passwordHash, isActive: true },
     create: {
       email: "vocational.training@rakiya.lk",
       passwordHash,
@@ -320,10 +340,13 @@ async function main() {
       roles: { create: [{ role: Role.TrainingProvider }] }
     }
   });
+  await ensureDemoRole(trainingProvider.id, Role.TrainingProvider);
 
   // 6. Seed Sample Jobs (by Sunil)
   console.log("Seeding sample jobs...");
-  const job1 = await prisma.job.create({
+  const job1 = await prisma.job.findFirst({
+    where: { employerId: sunil.id, title: "Master Wood Carpenter & Joiner Needed" }
+  }) ?? await prisma.job.create({
     data: {
       employerId: sunil.id,
       title: "Master Wood Carpenter & Joiner Needed",
@@ -339,7 +362,9 @@ async function main() {
     }
   });
 
-  const job2 = await prisma.job.create({
+  const job2 = await prisma.job.findFirst({
+    where: { employerId: sunil.id, title: "Site Maintenance Electrician" }
+  }) ?? await prisma.job.create({
     data: {
       employerId: sunil.id,
       title: "Site Maintenance Electrician",
@@ -355,7 +380,9 @@ async function main() {
     }
   });
 
-  const job3 = await prisma.job.create({
+  const job3 = await prisma.job.findFirst({
+    where: { employerId: sunil.id, title: "Factory Assembly & Packing Crew" }
+  }) ?? await prisma.job.create({
     data: {
       employerId: sunil.id,
       title: "Factory Assembly & Packing Crew",
@@ -373,10 +400,13 @@ async function main() {
 
   // 7. Seed Sample Pitches (by Anura)
   console.log("Seeding sample micro-business pitches...");
-  const pitch1 = await prisma.pitch.create({
+  const pitchTitle = "Kandy Organic Bee-keeping & Pure Hill-Country Honey Expansion";
+  const pitch1 = await prisma.pitch.findFirst({
+    where: { entrepreneurId: anura.id, title: pitchTitle }
+  }) ?? await prisma.pitch.create({
     data: {
       entrepreneurId: anura.id,
-      title: "Kandy Organic Bee-keeping & Pure Hill-Country Honey Expansion",
+      title: pitchTitle,
       story: "We run a small family-owned apiary producing pure raw mountain honey in Kandy. We currently maintain 25 beehives and wish to expand to 75 hives to meet local organic grocery demand. Funding will purchase modern wooden hive boxes, protective gear for 3 local village workers, and glass bottling equipment.",
       districtId: "kandy",
       sectorId: "agriculture-agro",
@@ -389,8 +419,10 @@ async function main() {
 
   // 8. Seed Job Application (Kamal applies for Job 2)
   console.log("Seeding job applications...");
-  await prisma.jobApplication.create({
-    data: {
+  await prisma.jobApplication.upsert({
+    where: { jobId_applicantId: { jobId: job2.id, applicantId: kamal.id } },
+    update: {},
+    create: {
       jobId: job2.id,
       applicantId: kamal.id,
       status: ApplicationStatus.SHORTLISTED,
@@ -400,7 +432,10 @@ async function main() {
 
   // 9. Seed Pitch Interest / Pledge (Funder pledges interest on Anura's pitch)
   console.log("Seeding pitch interest and pledges...");
-  await prisma.pitchInterest.create({
+  const pitchInterest = await prisma.pitchInterest.findFirst({
+    where: { pitchId: pitch1.id, funderId: funder.id }
+  });
+  if (!pitchInterest) await prisma.pitchInterest.create({
     data: {
       pitchId: pitch1.id,
       funderId: funder.id,
@@ -411,7 +446,14 @@ async function main() {
 
   // 10. Seed Conversation & Messages
   console.log("Seeding conversations...");
-  const conv = await prisma.conversation.create({
+  const conv = await prisma.conversation.findFirst({
+    where: {
+      type: "JOB_APPLICATION",
+      referenceId: job2.id,
+      participant1Id: sunil.id,
+      participant2Id: kamal.id
+    }
+  }) ?? await prisma.conversation.create({
     data: {
       type: "JOB_APPLICATION",
       referenceId: job2.id,
@@ -420,29 +462,37 @@ async function main() {
     }
   });
 
-  await prisma.message.create({
+  const employerMessage = "Hello Kamal, I saw your electrical experience and application. Can you visit the site this Thursday for a brief walkthrough?";
+  const seekerMessage = "ස්තූතියි මහත්මයා. මම බ්‍රහස්පතින්දා උදෑසන 10ට පැමිණෙන්නම්. (Thank you sir, I can visit on Thursday at 10 AM.)";
+  if (!await prisma.message.findFirst({
+    where: { conversationId: conv.id, senderId: sunil.id, content: employerMessage }
+  })) await prisma.message.create({
     data: {
       conversationId: conv.id,
       senderId: sunil.id,
       receiverId: kamal.id,
-      content: "Hello Kamal, I saw your electrical experience and application. Can you visit the site this Thursday for a brief walkthrough?",
+      content: employerMessage,
       originalLanguage: "en"
     }
   });
 
-  await prisma.message.create({
+  if (!await prisma.message.findFirst({
+    where: { conversationId: conv.id, senderId: kamal.id, content: seekerMessage }
+  })) await prisma.message.create({
     data: {
       conversationId: conv.id,
       senderId: kamal.id,
       receiverId: sunil.id,
-      content: "ස්තූතියි මහත්මයා. මම බ්‍රහස්පතින්දා උදෑසන 10ට පැමිණෙන්නම්. (Thank you sir, I can visit on Thursday at 10 AM.)",
+      content: seekerMessage,
       originalLanguage: "si"
     }
   });
 
   // 11. Seed Audit Logs
   console.log("Seeding audit logs...");
-  await prisma.auditLog.create({
+  if (!await prisma.auditLog.findFirst({
+    where: { action: "VERIFICATION_APPROVED", targetType: "VerificationRequest", targetId: kamal.id, actorId: verifier.id }
+  })) await prisma.auditLog.create({
     data: {
       action: "VERIFICATION_APPROVED",
       actorId: verifier.id,
@@ -452,7 +502,9 @@ async function main() {
     }
   });
 
-  await prisma.auditLog.create({
+  if (!await prisma.auditLog.findFirst({
+    where: { action: "PITCH_APPROVED", targetType: "Pitch", targetId: pitch1.id, actorId: verifier.id }
+  })) await prisma.auditLog.create({
     data: {
       action: "PITCH_APPROVED",
       actorId: verifier.id,
@@ -473,4 +525,3 @@ main()
   .finally(async () => {
     await prisma.$disconnect();
   });
-
