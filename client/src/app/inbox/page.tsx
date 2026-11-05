@@ -9,14 +9,15 @@ import { api } from "../../lib/api";
 import { VerifiedBadge } from "../../components/VerifiedBadge";
 
 export default function InboxPage() {
-  const { user } = useAuth();
+  const { user, can, loading: authLoading } = useAuth();
   const { t } = useLanguage();
   const [conversations, setConversations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (authLoading || !can("chat:use")) return;
     fetchConversations();
-  }, []);
+  }, [authLoading, can]);
 
   const fetchConversations = async () => {
     setLoading(true);
@@ -30,13 +31,17 @@ export default function InboxPage() {
     }
   };
 
-  if (!user) {
+  if (authLoading) {
+    return <div className="text-center py-12 text-gray-500 font-medium">Checking access...</div>;
+  }
+
+  if (!can("chat:use")) {
     return (
       <div className="max-w-md mx-auto text-center py-12 bg-white rounded-2xl border border-gray-200 p-6">
-        <p className="font-bold text-gray-700">Please sign in to view your messages.</p>
-        <Link href="/login" className="mt-3 inline-block bg-primary-700 text-white font-bold text-xs px-4 py-2 rounded-lg">
+        <p className="font-bold text-gray-700">{user ? "Messaging is not available to this account." : "Please sign in to view your messages."}</p>
+        {!user && <Link href="/login" className="mt-3 inline-block bg-primary-700 text-white font-bold text-xs px-4 py-2 rounded-lg">
           Sign In
-        </Link>
+        </Link>}
       </div>
     );
   }
@@ -101,4 +106,3 @@ export default function InboxPage() {
     </div>
   );
 }
-

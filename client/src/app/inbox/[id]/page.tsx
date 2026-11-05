@@ -12,7 +12,7 @@ import { VerifiedBadge } from "../../../components/VerifiedBadge";
 export default function ConversationDetailPage() {
   const params = useParams();
   const id = params?.id as string;
-  const { user } = useAuth();
+  const { user, can, loading: authLoading } = useAuth();
   const { t, locale } = useLanguage();
 
   const [conversation, setConversation] = useState<any>(null);
@@ -23,8 +23,10 @@ export default function ConversationDetailPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (id) fetchMessages();
-  }, [id, locale]);
+    if (authLoading) return;
+    if (id && can("chat:use")) fetchMessages();
+    else setLoading(false);
+  }, [id, locale, authLoading, can]);
 
   const fetchMessages = async () => {
     try {
@@ -65,6 +67,14 @@ export default function ConversationDetailPage() {
       setSending(false);
     }
   };
+
+  if (authLoading) {
+    return <div className="text-center py-12 text-gray-500 font-medium">Checking access...</div>;
+  }
+
+  if (!can("chat:use")) {
+    return <div className="max-w-md mx-auto text-center py-12 bg-white rounded-2xl border border-gray-200 p-6"><p className="font-bold text-gray-700">{user ? "Messaging is not available to this account." : "Please sign in to view this conversation."}</p>{!user && <Link href="/login" className="mt-3 inline-block text-primary-700 font-bold text-xs">Sign In</Link>}</div>;
+  }
 
   if (loading) {
     return <div className="text-center py-12 text-gray-500 font-medium">Loading conversation...</div>;
@@ -174,4 +184,3 @@ export default function ConversationDetailPage() {
     </div>
   );
 }
-

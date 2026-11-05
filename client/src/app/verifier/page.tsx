@@ -18,7 +18,8 @@ import { useAuth } from "../../context/AuthContext";
 import { api } from "../../lib/api";
 
 export default function VerifierQueuePage() {
-  const { isVerifier, isAdmin } = useAuth();
+  const { can, loading: authLoading } = useAuth();
+  const hasReviewAccess = can("verification:review") || can("pitch:review");
 
   const [activeTab, setActiveTab] = useState<"identity" | "pitches">("identity");
   const [identityQueue, setIdentityQueue] = useState<any[]>([]);
@@ -42,15 +43,15 @@ export default function VerifierQueuePage() {
   });
 
   useEffect(() => {
-    fetchQueues();
-  }, []);
+    if (!authLoading && hasReviewAccess) fetchQueues();
+  }, [authLoading, hasReviewAccess]);
 
   const fetchQueues = async () => {
     setLoading(true);
     try {
       const [idRes, pitchRes] = await Promise.all([
-        api.get("/verification/queue?status=PENDING"),
-        api.get("/pitches/verifier/queue")
+        can("verification:review") ? api.get("/verification/queue?status=PENDING") : Promise.resolve(null),
+        can("pitch:review") ? api.get("/pitches/verifier/queue") : Promise.resolve(null)
       ]);
       if (idRes?.queue) setIdentityQueue(idRes.queue);
       if (pitchRes?.queue) setPitchQueue(pitchRes.queue);
@@ -110,7 +111,11 @@ export default function VerifierQueuePage() {
     }
   };
 
-  if (!isVerifier && !isAdmin) {
+  if (authLoading) {
+    return <div className="text-center py-12 text-gray-500 font-medium">Checking access...</div>;
+  }
+
+  if (!hasReviewAccess) {
     return (
       <div className="max-w-md mx-auto text-center py-12 bg-white rounded-2xl border border-gray-200 p-6">
         <ShieldCheck className="mx-auto text-gray-400 mb-3" size={40} />
@@ -131,14 +136,14 @@ export default function VerifierQueuePage() {
         <p className="mt-2 text-sm leading-6 text-slate-600">Review identity, business, and proposal submissions.</p>
 
         <nav className="mt-6 grid gap-1" aria-label="Verification queue sections">
-          <button type="button" onClick={() => setActiveTab("identity")} aria-current={activeTab === "identity" ? "page" : undefined} className={`flex min-h-11 items-center justify-between gap-2 rounded-xl px-3 text-left text-sm font-semibold transition ${activeTab === "identity" ? "bg-primary-700 text-white shadow-sm" : "text-slate-600 hover:bg-primary-50 hover:text-primary-800"}`}>
+          {can("verification:review") && <button type="button" onClick={() => setActiveTab("identity")} aria-current={activeTab === "identity" ? "page" : undefined} className={`flex min-h-11 items-center justify-between gap-2 rounded-xl px-3 text-left text-sm font-semibold transition ${activeTab === "identity" ? "bg-primary-700 text-white shadow-sm" : "text-slate-600 hover:bg-primary-50 hover:text-primary-800"}`}>
             <span className="flex items-center gap-3"><UserCheck size={17} />Identity & business</span>
             <span className={`rounded-full px-2 py-0.5 text-xs ${activeTab === "identity" ? "bg-white/15 text-white" : "bg-slate-100 text-slate-600"}`}>{identityQueue.length}</span>
-          </button>
-          <button type="button" onClick={() => setActiveTab("pitches")} aria-current={activeTab === "pitches" ? "page" : undefined} className={`flex min-h-11 items-center justify-between gap-2 rounded-xl px-3 text-left text-sm font-semibold transition ${activeTab === "pitches" ? "bg-primary-700 text-white shadow-sm" : "text-slate-600 hover:bg-primary-50 hover:text-primary-800"}`}>
+          </button>}
+          {can("pitch:review") && <button type="button" onClick={() => setActiveTab("pitches")} aria-current={activeTab === "pitches" ? "page" : undefined} className={`flex min-h-11 items-center justify-between gap-2 rounded-xl px-3 text-left text-sm font-semibold transition ${activeTab === "pitches" ? "bg-primary-700 text-white shadow-sm" : "text-slate-600 hover:bg-primary-50 hover:text-primary-800"}`}>
             <span className="flex items-center gap-3"><TrendingUp size={17} />Proposal reviews</span>
             <span className={`rounded-full px-2 py-0.5 text-xs ${activeTab === "pitches" ? "bg-white/15 text-white" : "bg-slate-100 text-slate-600"}`}>{pitchQueue.length}</span>
-          </button>
+          </button>}
         </nav>
       </aside>
 

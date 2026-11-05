@@ -44,7 +44,7 @@ interface JobItem {
 }
 
 export default function MyJobsPage() {
-  const { user, isEntrepreneur, isEmployer, isAdmin, loading: authLoading } = useAuth();
+  const { user, can, isEmployer, loading: authLoading } = useAuth();
   const { locale } = useLanguage();
 
   const [jobs, setJobs] = useState<JobItem[]>([]);
@@ -82,7 +82,7 @@ export default function MyJobsPage() {
   useEffect(() => {
     if (authLoading) return;
 
-    if (!user || (!isEmployer && !isEntrepreneur && !isAdmin)) {
+    if (!user || !can("job:manage_own")) {
       setJobs([]);
       setLoading(false);
       return;
@@ -94,7 +94,7 @@ export default function MyJobsPage() {
     api.get("/master/districts").then((res: any) => {
       if (res?.districts) setDistricts(res.districts);
     }).catch(() => {});
-  }, [authLoading, user, isEmployer, isEntrepreneur, isAdmin, fetchMyJobs]);
+  }, [authLoading, user, can, fetchMyJobs]);
 
   const handleToggleStatus = async (jobId: string, currentStatus: "OPEN" | "CLOSED") => {
     const newStatus = currentStatus === "OPEN" ? "CLOSED" : "OPEN";
@@ -164,17 +164,25 @@ export default function MyJobsPage() {
     }
   };
 
-  const isAuthorizedToPost = isEntrepreneur || isEmployer || isAdmin;
+  const isAuthorizedToPost = can("job:create");
 
-  const pageHeading = isEntrepreneur
-    ? "My Venture Job Openings"
-    : isEmployer
+  const pageHeading = isEmployer
     ? "My Posted Job Vacancies"
     : "My Job Postings";
 
-  const pageDescription = isEntrepreneur
-    ? "Manage hiring vacancies for your micro-business, edit active postings, and review applicants."
-    : "Manage your open and closed positions, review candidates, and hire workers.";
+  const pageDescription = "Manage your open and closed positions, review candidates, and hire workers.";
+
+  if (authLoading) {
+    return <div className="text-center py-12 text-gray-500 font-medium">Loading your workspace...</div>;
+  }
+
+  if (!user) {
+    return <div className="max-w-md mx-auto text-center py-12 bg-white rounded-2xl border border-gray-200 p-6"><p className="font-bold text-gray-700">Please sign in to manage job listings.</p><Link href="/login" className="mt-3 inline-block bg-primary-700 text-white font-bold text-xs px-4 py-2 rounded-lg">Sign In</Link></div>;
+  }
+
+  if (!can("job:manage_own")) {
+    return <div className="max-w-md mx-auto text-center py-12 bg-white rounded-2xl border border-gray-200 p-6"><p className="font-bold text-gray-700">This workspace is available to Employers managing their own jobs.</p></div>;
+  }
 
   return (
     <div className="space-y-6">
@@ -250,9 +258,7 @@ export default function MyJobsPage() {
           </div>
           <h2 className="text-lg font-bold text-slate-900">You haven&apos;t posted any jobs yet</h2>
           <p className="mt-1.5 text-sm text-slate-500 max-w-md mx-auto">
-            {isEntrepreneur
-              ? "Share open roles for your venture to connect with verified Sri Lankan job seekers and skilled tradespeople."
-              : "Create a job opening to reach qualified candidates across Sri Lanka."}
+            Create a job opening to reach qualified candidates across Sri Lanka.
           </p>
 
           {isAuthorizedToPost ? (
@@ -361,13 +367,15 @@ export default function MyJobsPage() {
                     </button>
 
                     {/* REVIEW APPLICANTS */}
-                    <Link
-                      href={`/jobs/${job.id}/applicants`}
-                      className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
-                    >
-                      <Users size={14} className="text-slate-500" />
-                      <span>Review Applicants ({applicantsCount})</span>
-                    </Link>
+                    {can("applicant:view") && (
+                      <Link
+                        href={`/jobs/${job.id}/applicants`}
+                        className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+                      >
+                        <Users size={14} className="text-slate-500" />
+                        <span>Review Applicants ({applicantsCount})</span>
+                      </Link>
+                    )}
                   </div>
 
                   {/* TOGGLE STATUS */}

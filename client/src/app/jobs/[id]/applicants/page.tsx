@@ -6,8 +6,10 @@ import Link from "next/link";
 import { Users, Filter, ArrowLeft, ShieldCheck, Phone, Mail, MapPin, MessageSquare, Check, X } from "lucide-react";
 import { api } from "../../../../lib/api";
 import { VerifiedBadge } from "../../../../components/VerifiedBadge";
+import { useAuth } from "../../../../context/AuthContext";
 
 export default function JobApplicantsPage() {
+  const { can, loading: authLoading, user } = useAuth();
   const params = useParams();
   const id = params?.id as string;
 
@@ -18,11 +20,12 @@ export default function JobApplicantsPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (authLoading || !can("applicant:view")) return;
     api.get("/master/districts").then((res) => {
       if (res?.districts) setDistricts(res.districts);
     });
     fetchApplicants();
-  }, [id]);
+  }, [authLoading, can, id]);
 
   const fetchApplicants = async (districtId = "", skills = "") => {
     setLoading(true);
@@ -48,6 +51,14 @@ export default function JobApplicantsPage() {
       alert(err.message || "Failed to update status");
     }
   };
+
+  if (authLoading) {
+    return <div className="text-center py-12 text-gray-500 font-medium">Loading account permissions...</div>;
+  }
+
+  if (!can("applicant:view")) {
+    return <div className="max-w-md mx-auto text-center py-12 bg-white rounded-2xl border border-gray-200 p-6"><p className="font-bold text-gray-700">Applicant details are available to Employers for their own jobs.</p>{!user && <Link href="/login" className="mt-3 inline-block text-primary-700 font-bold text-xs">Sign In</Link>}</div>;
+  }
 
   return (
     <div className="space-y-6">
@@ -144,17 +155,19 @@ export default function JobApplicantsPage() {
 
                 <div className="flex items-center space-x-2">
                   <span className="text-xs text-gray-500">Status:</span>
-                  <select
-                    value={app.status}
-                    onChange={(e) => handleStatusChange(app.id, e.target.value)}
-                    className="text-xs font-bold px-2.5 py-1.5 border border-gray-300 rounded-lg bg-white"
-                  >
-                    <option value="APPLIED">APPLIED</option>
-                    <option value="REVIEWING">REVIEWING</option>
-                    <option value="SHORTLISTED">SHORTLISTED</option>
-                    <option value="ACCEPTED">ACCEPTED</option>
-                    <option value="REJECTED">REJECTED</option>
-                  </select>
+                  {can("applicant:update_status") ? (
+                    <select
+                      value={app.status}
+                      onChange={(e) => handleStatusChange(app.id, e.target.value)}
+                      className="text-xs font-bold px-2.5 py-1.5 border border-gray-300 rounded-lg bg-white"
+                    >
+                      <option value="APPLIED">APPLIED</option>
+                      <option value="REVIEWING">REVIEWING</option>
+                      <option value="SHORTLISTED">SHORTLISTED</option>
+                      <option value="ACCEPTED">ACCEPTED</option>
+                      <option value="REJECTED">REJECTED</option>
+                    </select>
+                  ) : <span className="text-xs font-bold">{app.status}</span>}
                 </div>
               </div>
 

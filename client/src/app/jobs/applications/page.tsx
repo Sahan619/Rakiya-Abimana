@@ -5,14 +5,17 @@ import Link from "next/link";
 import { ClipboardList, Building2, MapPin, DollarSign, ArrowRight, Clock } from "lucide-react";
 import { api } from "../../../lib/api";
 import { VerifiedBadge } from "../../../components/VerifiedBadge";
+import { useAuth } from "../../../context/AuthContext";
 
 export default function MyApplicationsPage() {
+  const { can, loading: authLoading, user } = useAuth();
   const [applications, setApplications] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (authLoading || !can("application:view_own")) return;
     fetchApplications();
-  }, []);
+  }, [authLoading, can]);
 
   const fetchApplications = async () => {
     setLoading(true);
@@ -40,6 +43,14 @@ export default function MyApplicationsPage() {
       </span>
     );
   };
+
+  if (authLoading) {
+    return <div className="text-center py-12 text-gray-500 font-medium">Loading account permissions...</div>;
+  }
+
+  if (!can("application:view_own")) {
+    return <div className="max-w-md mx-auto text-center py-12 bg-white rounded-2xl border border-gray-200 p-6"><p className="font-bold text-gray-700">Job application history is available to Job Seekers.</p>{!user && <Link href="/login" className="mt-3 inline-block text-primary-700 font-bold text-xs">Sign In</Link>}</div>;
+  }
 
   return (
     <div className="space-y-6">

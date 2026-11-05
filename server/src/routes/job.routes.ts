@@ -184,15 +184,28 @@ router.get("/nearby", authenticateToken, requirePermission("job:nearby"), async 
       const distance = calculateHaversineDistance(userLat, userLng, job.lat, job.lng);
       if (distance <= radiusKm) {
         const enriched = await enrichJobWithTranslation(prisma, job, lang);
-        matchingJobs.push({
-          ...enriched,
-          distanceKm: distance,
-          employer: {
-            id: enriched.employer.id,
-            companyName: enriched.employer.employerProfile?.companyName || enriched.employer.fullName,
-            isVerified: enriched.employer.isVerified
-          }
-        });
+        if (hasPermission(req.user!.roles, "job:view_detail")) {
+          matchingJobs.push({
+            ...enriched,
+            distanceKm: distance,
+            employer: {
+              id: enriched.employer.id,
+              companyName: enriched.employer.employerProfile?.companyName || enriched.employer.fullName,
+              isVerified: enriched.employer.isVerified
+            }
+          });
+        } else {
+          matchingJobs.push({
+            id: enriched.id,
+            title: enriched.title,
+            originalTitle: enriched.originalTitle,
+            district: enriched.district,
+            wage: enriched.wage,
+            distanceKm: distance,
+            isMachineTranslated: enriched.isMachineTranslated,
+            guestRestricted: true
+          });
+        }
       }
     }
 
@@ -241,7 +254,7 @@ router.get("/:id", authenticateToken, requirePermission("job:view_detail"), asyn
     // Check if user has already applied
     let hasApplied = false;
     let applicationDetails = null;
-    if (req.user) {
+    if (req.user && hasPermission(req.user.roles, "application:view_own")) {
       const app = await prisma.jobApplication.findUnique({
         where: {
           jobId_applicantId: {
@@ -627,7 +640,9 @@ const getMyJobsHandler = async (req: Request, res: Response) => {
       where: { employerId: req.user!.id },
       include: {
         district: true,
-        _count: { select: { applications: true } }
+        ...(hasPermission(req.user!.roles, "applicant:view")
+          ? { _count: { select: { applications: true } } }
+          : {})
       },
       orderBy: { createdAt: "desc" }
     });

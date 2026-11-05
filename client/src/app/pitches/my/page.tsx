@@ -4,14 +4,17 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { TrendingUp, PlusCircle, ArrowRight, HeartHandshake, CheckCircle2, Clock, XCircle } from "lucide-react";
 import { api } from "../../../lib/api";
+import { useAuth } from "../../../context/AuthContext";
 
 export default function MyPitchesPage() {
+  const { can, loading: authLoading, user } = useAuth();
   const [pitches, setPitches] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (authLoading || !can("pitch:manage_own")) return;
     fetchMyPitches();
-  }, []);
+  }, [authLoading, can]);
 
   const fetchMyPitches = async () => {
     setLoading(true);
@@ -39,6 +42,14 @@ export default function MyPitchesPage() {
       </span>
     );
   };
+
+  if (authLoading) {
+    return <div className="text-center py-12 text-gray-500 font-medium">Loading account permissions...</div>;
+  }
+
+  if (!can("pitch:manage_own")) {
+    return <div className="max-w-md mx-auto text-center py-12 bg-white rounded-2xl border border-gray-200 p-6"><p className="font-bold text-gray-700">This workspace is available to Entrepreneurs managing their pitches.</p>{!user && <Link href="/login" className="mt-3 inline-block text-teal-700 font-bold text-xs">Sign In</Link>}</div>;
+  }
 
   return (
     <div className="space-y-6">

@@ -62,7 +62,7 @@ interface JobFilters {
 const EMPTY_FILTERS: JobFilters = { search: "", district: "", category: "", minimumWage: "" };
 
 export default function JobsPage() {
-  const { user, isEmployer, isJobSeeker, isEntrepreneur, isAdmin } = useAuth();
+  const { user, can } = useAuth();
   const { t, locale } = useLanguage();
   const [jobs, setJobs] = useState<JobListing[]>([]);
   const [districts, setDistricts] = useState<District[]>([]);
@@ -153,7 +153,7 @@ export default function JobsPage() {
             <h1 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">{t("jobs.title", "Find work that fits your skills")}</h1>
             <p className="mt-3 max-w-xl text-sm leading-6 text-white/70 sm:text-base">Browse open roles, discover local employers, and find opportunities across Sri Lanka.</p>
           </div>
-          {(isEmployer || isEntrepreneur) && (
+          {can("job:create") && (
             <Link href="/jobs/post" className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-white px-4 text-sm font-semibold text-primary-800 transition hover:bg-[#f5efe2]">
               <BriefcaseBusiness size={17} />{t("nav.postJob", "Post a job")}
             </Link>
@@ -260,7 +260,7 @@ export default function JobsPage() {
                   )}
                   <div className="mt-auto flex items-center justify-between gap-3 border-t border-slate-100 pt-4">
                     <span className="text-xs text-slate-400">{new Date(job.createdAt).toLocaleDateString(locale)}</span>
-                    {user && (user.id === job.employer?.id || isAdmin) ? (
+                    {user && can("job:manage_own") && user.id === job.employer?.id ? (
                       <Link
                         href="/jobs/my"
                         className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-slate-900 px-4 text-sm font-semibold text-white transition hover:bg-slate-800"
@@ -268,30 +268,24 @@ export default function JobsPage() {
                         <Pencil size={14} />
                         <span>Manage & Edit</span>
                       </Link>
-                    ) : job.guestRestricted ? (
+                    ) : !user ? (
                       <Link
                         href="/login"
                         className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-primary-700 px-4 text-sm font-semibold text-white transition hover:bg-primary-800"
                       >
-                        <span>Sign in to apply</span>
+                        <span>Sign in to view details</span>
                         <ArrowRight size={15} />
                       </Link>
-                    ) : isJobSeeker ? (
+                    ) : can("job:view_detail") ? (
                       <Link
                         href={`/jobs/${job.id}`}
                         className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-primary-700 px-4 text-sm font-semibold text-white transition hover:bg-primary-800"
                       >
-                        <span>{t("jobs.applyNow", "View & apply")}</span>
+                        <span>{can("job:apply") ? t("jobs.applyNow", "View & apply") : "View details"}</span>
                         <ArrowRight size={15} />
                       </Link>
                     ) : (
-                      <Link
-                        href={`/jobs/${job.id}`}
-                        className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 hover:border-slate-300"
-                      >
-                        <span>View details</span>
-                        <ArrowRight size={15} />
-                      </Link>
+                      <span className="text-xs text-slate-500">Limited public listing</span>
                     )}
                   </div>
                 </article>
@@ -306,7 +300,7 @@ export default function JobsPage() {
           <p className="font-semibold text-slate-900">Hiring for your team?</p>
           <p className="mt-1 text-sm text-slate-600">Share an opening and reach people looking for their next role.</p>
         </div>
-        <Link href={(isEmployer || isEntrepreneur) ? "/jobs/post" : "/register"} className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-[#c7b58e] bg-white/70 px-4 text-sm font-semibold text-slate-800 transition hover:bg-white">Post a job<Check size={15} /></Link>
+        <Link href={can("job:create") ? "/jobs/post" : "/register"} className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-[#c7b58e] bg-white/70 px-4 text-sm font-semibold text-slate-800 transition hover:bg-white">Post a job<Check size={15} /></Link>
       </section>
     </div>
   );

@@ -18,13 +18,12 @@ import { api } from "../../lib/api";
 import { VerifiedBadge } from "../../components/VerifiedBadge";
 
 export default function VerificationPage() {
-  const { user, refreshUser } = useAuth();
+  const { user, can, loading: authLoading, refreshUser } = useAuth();
   const { t } = useLanguage();
 
   const [nicNumber, setNicNumber] = useState("");
   const [gramaDoc, setGramaDoc] = useState<File | null>(null);
   const [businessDoc, setBusinessDoc] = useState<File | null>(null);
-  const [institutionDoc, setInstitutionDoc] = useState<File | null>(null);
   const [statusData, setStatusData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -32,10 +31,9 @@ export default function VerificationPage() {
   const [error, setError] = useState<string | null>(null);
 
   const roles = user?.roles || [];
-  const isAdminOrVerifier = roles.includes("Admin") || roles.includes("Verifier");
   const isJobSeeker = roles.includes("JobSeeker");
   const requiresNic = roles.includes("Employer") || roles.includes("Entrepreneur") || (roles.includes("Funder") && user?.funderProfile?.accountType === "INDIVIDUAL");
-  const canSubmitDocuments = roles.includes("Employer") || roles.includes("Entrepreneur") || roles.includes("Funder") || roles.includes("TrainingProvider");
+  const canSubmitDocuments = can("verification:submit");
 
   useEffect(() => {
     fetchStatus();
@@ -73,7 +71,6 @@ export default function VerificationPage() {
       formData.append("nicNumber", nicNumber.trim());
       if (gramaDoc) formData.append("gramaNiladhariDoc", gramaDoc);
       if (businessDoc) formData.append("businessRegDoc", businessDoc);
-      if (institutionDoc) formData.append("institutionDoc", institutionDoc);
 
       const res = await api.post("/verification/submit", formData);
       setMessage(res.message || "Verification submitted successfully.");
@@ -86,6 +83,10 @@ export default function VerificationPage() {
     }
   };
 
+  if (authLoading) {
+    return <div className="text-center py-12 text-gray-500 font-medium">Checking access...</div>;
+  }
+
   if (!user) {
     return (
       <div className="max-w-md mx-auto text-center py-12 bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
@@ -96,8 +97,8 @@ export default function VerificationPage() {
     );
   }
 
-  if (isAdminOrVerifier) {
-    return <div className="mx-auto max-w-xl rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm"><ShieldCheck className="mx-auto text-primary-700" size={40} /><h2 className="mt-4 text-lg font-bold text-slate-900">No public verification form</h2><p className="mt-2 text-sm text-slate-600">Administrative and verifier accounts are provisioned and managed through authorized workflows.</p></div>;
+  if (!canSubmitDocuments) {
+    return <div className="mx-auto max-w-xl rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm"><ShieldCheck className="mx-auto text-primary-700" size={40} /><h2 className="mt-4 text-lg font-bold text-slate-900">Verification is unavailable</h2><p className="mt-2 text-sm text-slate-600">This account is not permitted to submit verification documents.</p></div>;
   }
 
   return (
@@ -261,12 +262,6 @@ export default function VerificationPage() {
             </div>
             )}
 
-            {roles.includes("TrainingProvider") && (
-            <div>
-              <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Institution registration or accreditation document</label>
-              <input type="file" accept=".pdf,.png,.jpg,.jpeg" onChange={(e) => setInstitutionDoc(e.target.files?.[0] || null)} className="w-full text-xs text-gray-500 file:mr-4 file:rounded-md file:border-0 file:bg-primary-50 file:px-4 file:py-2 file:text-xs file:font-semibold file:text-primary-700" />
-            </div>
-            )}
 
             <button
               type="submit"

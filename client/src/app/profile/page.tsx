@@ -18,8 +18,7 @@ import {
   ArrowRight,
   Sparkles,
   Phone,
-  Globe,
-  GraduationCap
+  Globe
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { useLanguage } from "../../context/LanguageContext";
@@ -42,7 +41,7 @@ interface Category {
 }
 
 export default function ProfilePage() {
-  const { user, refreshUser, isJobSeeker, isEmployer, isFunder, isEntrepreneur, isAdmin } = useAuth();
+  const { user, can, loading: authLoading, refreshUser, isJobSeeker, isEmployer, isFunder, isEntrepreneur } = useAuth();
   const { t, locale, setLocale } = useLanguage();
 
   const [districts, setDistricts] = useState<District[]>([]);
@@ -86,14 +85,6 @@ export default function ProfilePage() {
   const [funderOrganizationType, setFunderOrganizationType] = useState("");
   const [funderInterests, setFunderInterests] = useState("");
 
-  const [trainingInstitution, setTrainingInstitution] = useState("");
-  const [trainingCategories, setTrainingCategories] = useState("");
-  const [trainingCourses, setTrainingCourses] = useState("");
-  const [trainingAccreditation, setTrainingAccreditation] = useState("");
-  const [trainingLocation, setTrainingLocation] = useState("");
-  const [trainingPhone, setTrainingPhone] = useState("");
-  const [trainingWebsite, setTrainingWebsite] = useState("");
-
   // Funder profile fields (for funders only)
   const [funderType, setFunderType] = useState("CSR business");
   const [funderDistricts, setFunderDistricts] = useState("");
@@ -109,6 +100,7 @@ export default function ProfilePage() {
   const [updatingPassword, setUpdatingPassword] = useState(false);
 
   useEffect(() => {
+    if (authLoading || !can("profile:manage_own")) return;
     api.get("/master/districts").then((res: any) => {
       if (res?.districts) setDistricts(res.districts);
     }).catch((err) => console.error("Failed to fetch districts", err));
@@ -116,7 +108,7 @@ export default function ProfilePage() {
     api.get("/master/categories").then((res: any) => {
       if (res?.categories) setCategories(res.categories);
     }).catch((err) => console.error("Failed to fetch categories", err));
-  }, []);
+  }, [authLoading, can]);
 
   useEffect(() => {
     if (user) {
@@ -164,15 +156,6 @@ export default function ProfilePage() {
         setFunderInterests(user.funderProfile.fundingInterests || "");
         setFunderDistricts(user.funderProfile.focusDistricts || "");
         setFunderSectors(user.funderProfile.focusSectors || "");
-      }
-      if (user.trainingProviderProfile) {
-        setTrainingInstitution(user.trainingProviderProfile.institutionName || "");
-        setTrainingCategories(user.trainingProviderProfile.trainingCategories || "");
-        setTrainingCourses(user.trainingProviderProfile.coursesOffered || "");
-        setTrainingAccreditation(user.trainingProviderProfile.accreditation || "");
-        setTrainingLocation(user.trainingProviderProfile.trainingLocation || "");
-        setTrainingPhone(user.trainingProviderProfile.contactPhone || "");
-        setTrainingWebsite(user.trainingProviderProfile.website || "");
       }
     }
   }, [user]);
@@ -247,17 +230,6 @@ export default function ProfilePage() {
           });
         }
 
-        if (user?.roles.includes("TrainingProvider")) {
-          await api.post("/users/training-provider-profile", {
-            institutionName: trainingInstitution || user?.fullName || "Training Provider",
-            trainingCategories,
-            coursesOffered: trainingCourses,
-            accreditation: trainingAccreditation,
-            trainingLocation,
-            contactPhone: trainingPhone,
-            website: trainingWebsite
-          });
-        }
       }
 
       await refreshUser();
@@ -289,6 +261,10 @@ export default function ProfilePage() {
     }
   };
 
+  if (authLoading) {
+    return <div className="text-center py-12 text-gray-500 font-medium">Loading account permissions...</div>;
+  }
+
   if (!user) {
     return (
       <div className="surface-card mx-auto max-w-md p-8 text-center">
@@ -303,6 +279,10 @@ export default function ProfilePage() {
         </Link>
       </div>
     );
+  }
+
+  if (!can("profile:manage_own")) {
+    return <div className="surface-card mx-auto max-w-md p-8 text-center"><User size={36} className="mx-auto text-slate-400 mb-3" /><h2 className="text-lg font-bold text-slate-900">Profile management is disabled for this account</h2></div>;
   }
 
   // Determine current active district name
@@ -819,21 +799,6 @@ export default function ProfilePage() {
                 </div>
                 <ArrowRight size={16} className="text-primary-700 shrink-0" />
               </Link>
-            </div>
-          </section>
-        )}
-
-        {!isJobSeeker && user.roles.includes("TrainingProvider") && (
-          <section className="surface-card space-y-5 p-6 sm:p-7">
-            <div className="flex items-center gap-3 border-b border-slate-100 pb-3"><span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary-50 text-primary-700"><GraduationCap size={18} /></span><div><h2 className="text-base font-bold text-slate-900">Training Provider Profile</h2><p className="text-xs text-slate-500">Maintain your institution and course information.</p></div></div>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <label><span className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-700">Institution Name *</span><input required value={trainingInstitution} onChange={(e) => setTrainingInstitution(e.target.value)} className="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm" /></label>
-              <label><span className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-700">Training Categories</span><input value={trainingCategories} onChange={(e) => setTrainingCategories(e.target.value)} className="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm" /></label>
-              <label><span className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-700">Courses Offered</span><input value={trainingCourses} onChange={(e) => setTrainingCourses(e.target.value)} className="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm" /></label>
-              <label><span className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-700">Accreditation</span><input value={trainingAccreditation} onChange={(e) => setTrainingAccreditation(e.target.value)} className="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm" /></label>
-              <label><span className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-700">Training Location</span><input value={trainingLocation} onChange={(e) => setTrainingLocation(e.target.value)} className="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm" /></label>
-              <label><span className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-700">Contact Phone</span><input value={trainingPhone} onChange={(e) => setTrainingPhone(e.target.value)} className="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm" /></label>
-              <label className="sm:col-span-2"><span className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-700">Website</span><input type="url" value={trainingWebsite} onChange={(e) => setTrainingWebsite(e.target.value)} className="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm" /></label>
             </div>
           </section>
         )}

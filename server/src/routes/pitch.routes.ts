@@ -205,7 +205,12 @@ router.get(
     }
 
     const enriched = await enrichPitchWithTranslation(prisma, pitch, lang);
-    return res.json({ pitch: enriched });
+    if (isOwner && canManageOwn) {
+      return res.json({ pitch: enriched });
+    }
+
+    const { interests: _interests, ...pitchWithoutInterests } = enriched;
+    return res.json({ pitch: pitchWithoutInterests });
   } catch (err) {
     return res.status(500).json({ error: "Failed to fetch pitch details" });
   }

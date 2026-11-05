@@ -24,7 +24,7 @@ export default function PitchDetailPage() {
   const params = useParams();
   const id = params?.id as string;
   const router = useRouter();
-  const { user, isFunder } = useAuth();
+  const { user, can, loading: authLoading } = useAuth();
   const { t, locale } = useLanguage();
 
   const [pitch, setPitch] = useState<any>(null);
@@ -35,10 +35,16 @@ export default function PitchDetailPage() {
   const [submittingPledge, setSubmittingPledge] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const hasPitchAccess = can("pitch:browse_approved") || can("pitch:manage_own") || can("pitch:review");
 
   useEffect(() => {
-    if (id) fetchPitch();
-  }, [id, locale]);
+    if (authLoading) return;
+    if (id && hasPitchAccess) {
+      fetchPitch();
+    } else {
+      setLoading(false);
+    }
+  }, [id, locale, authLoading, hasPitchAccess]);
 
   const fetchPitch = async () => {
     setLoading(true);
@@ -97,6 +103,14 @@ export default function PitchDetailPage() {
       setErrorMsg(err.message || "Failed to start conversation");
     }
   };
+
+  if (authLoading) {
+    return <div className="text-center py-12 font-medium text-gray-500">Checking access...</div>;
+  }
+
+  if (!hasPitchAccess) {
+    return <div className="max-w-md mx-auto text-center py-12 bg-white rounded-2xl border border-gray-200 p-6"><p className="font-bold text-gray-700">{user ? "Pitch details are not available to this account." : "Sign in to browse approved pitches."}</p>{!user && <Link href="/login" className="mt-3 inline-block text-teal-700 font-bold text-xs">Sign In</Link>}</div>;
+  }
 
   if (loading) {
     return <div className="text-center py-12 font-medium text-gray-500">Loading pitch details...</div>;
@@ -185,7 +199,7 @@ export default function PitchDetailPage() {
         </div>
 
         {/* Message Entrepreneur */}
-        {user && user.id !== pitch.entrepreneur.id && (
+        {user && can("chat:use") && can("pitch:express_interest") && user.id !== pitch.entrepreneur.id && (
           <div className="pt-2">
             <button
               type="button"
@@ -200,6 +214,7 @@ export default function PitchDetailPage() {
       </div>
 
       {/* Funder Pledge Interest Form */}
+      {can("pitch:express_interest") && (
       <div className="bg-white border border-gray-200 rounded-2xl p-6 sm:p-8 shadow-sm space-y-4">
         <h2 className="text-base sm:text-lg font-bold text-gray-900 flex items-center space-x-2 border-b border-gray-100 pb-2">
           <HeartHandshake className="text-teal-700" size={22} />
@@ -262,27 +277,25 @@ export default function PitchDetailPage() {
           </button>
         </form>
 
-        {/* Existing Pledges List */}
-        {pitch.interests && pitch.interests.length > 0 && (
-          <div className="pt-4 border-t border-gray-100">
-            <h4 className="text-xs font-bold text-gray-700 uppercase mb-2">Registered Funder Expressions ({pitch.interests.length}):</h4>
-            <div className="space-y-2">
-              {pitch.interests.map((interest: any) => (
-                <div key={interest.id} className="bg-gray-50 p-3 rounded-xl text-xs space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-gray-800">{interest.funder?.fullName}</span>
-                    {interest.pledgeAmount && (
-                      <span className="font-bold text-teal-800">Pledged: Rs. {interest.pledgeAmount.toLocaleString()}</span>
-                    )}
-                  </div>
-                  <p className="text-gray-600">{interest.message}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
+      )}
+
+      {can("pitch:manage_own") && user?.id === pitch.entrepreneur.id && pitch.interests?.length > 0 && (
+        <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
+          <h2 className="text-xs font-bold text-gray-700 uppercase mb-3">Registered Funder Expressions ({pitch.interests.length}):</h2>
+          <div className="space-y-2">
+            {pitch.interests.map((interest: any) => (
+              <div key={interest.id} className="bg-gray-50 p-3 rounded-xl text-xs space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-gray-800">{interest.funder?.fullName}</span>
+                  {interest.pledgeAmount && <span className="font-bold text-teal-800">Pledged: Rs. {interest.pledgeAmount.toLocaleString()}</span>}
+                </div>
+                <p className="text-gray-600">{interest.message}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
-

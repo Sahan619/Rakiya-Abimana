@@ -159,6 +159,8 @@ export const ROLE_DEFINITIONS: Record<Role, RoleDefinition> = {
   }
 };
 
+export const GUEST_PERMISSIONS: Permission[] = ["job:list_public"];
+
 export const CHAT_PAIRS: ReadonlyArray<{
   type: "JOB_APPLICATION" | "PITCH_INTEREST";
   roles: readonly [Role, Role];
@@ -198,4 +200,8 @@ export function hasPermission(roles: readonly Role[], permission: Permission): b
 
 export function isRoleEnabled(role: Role): boolean {
   return configPermissionLookup.isRoleEnabled(role);
+}
+
+export function permissionsForGuest(): Permission[] {
+  return [...GUEST_PERMISSIONS];
 }

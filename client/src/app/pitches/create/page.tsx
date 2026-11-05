@@ -9,7 +9,7 @@ import { useLanguage } from "../../../context/LanguageContext";
 import { api } from "../../../lib/api";
 
 export default function CreatePitchPage() {
-  const { user, isEntrepreneur } = useAuth();
+  const { user, can, loading: authLoading } = useAuth();
   const { t, locale } = useLanguage();
   const router = useRouter();
 
@@ -66,6 +66,10 @@ export default function CreatePitchPage() {
     }
   };
 
+  if (authLoading) {
+    return <div className="text-center py-12 text-gray-500 font-medium">Loading account permissions...</div>;
+  }
+
   if (!user) {
     return (
       <div className="max-w-md mx-auto text-center py-12 bg-white rounded-2xl border border-gray-200 p-6">
@@ -75,6 +79,10 @@ export default function CreatePitchPage() {
         </Link>
       </div>
     );
+  }
+
+  if (!can("pitch:create")) {
+    return <div className="max-w-md mx-auto text-center py-12 bg-white rounded-2xl border border-gray-200 p-6"><p className="font-bold text-gray-700">Only Entrepreneurs can submit business pitches.</p></div>;
   }
 
   // Verification Gate Check
@@ -248,4 +256,3 @@ export default function CreatePitchPage() {
     </div>
   );
 }
-

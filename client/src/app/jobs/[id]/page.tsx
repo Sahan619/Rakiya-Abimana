@@ -29,7 +29,7 @@ export default function JobDetailPage() {
   const params = useParams();
   const id = params?.id as string;
   const router = useRouter();
-  const { user, isJobSeeker, isAdmin } = useAuth();
+  const { user, can, loading: authLoading } = useAuth();
   const { t, locale } = useLanguage();
 
   const [job, setJob] = useState<any>(null);
@@ -95,8 +95,13 @@ export default function JobDetailPage() {
   };
 
   useEffect(() => {
-    if (id) fetchJob();
-  }, [id, locale]);
+    if (authLoading) return;
+    if (id && can("job:view_detail")) {
+      fetchJob();
+    } else {
+      setLoading(false);
+    }
+  }, [id, locale, authLoading, can]);
 
   const fetchJob = async () => {
     setLoading(true);
@@ -155,6 +160,20 @@ export default function JobDetailPage() {
       setError(err.message || "Failed to initiate conversation");
     }
   };
+
+  if (authLoading) {
+    return <div className="text-center py-12 font-medium text-gray-500">Checking access...</div>;
+  }
+
+  if (!can("job:view_detail")) {
+    return (
+      <div className="max-w-md mx-auto text-center py-12 bg-white rounded-2xl border border-gray-200 p-6">
+        <p className="font-bold text-gray-700">{user ? "Job details are not available to this account." : "Sign in to view job details and apply."}</p>
+        {!user && <Link href="/login" className="mt-3 inline-block bg-primary-700 text-white font-bold text-xs px-4 py-2 rounded-lg">Sign In</Link>}
+        <Link href="/jobs" className="mt-3 block text-primary-700 text-xs font-bold underline">Browse jobs</Link>
+      </div>
+    );
+  }
 
   if (loading) {
     return <div className="text-center py-12 font-medium text-gray-500">Loading job details...</div>;
@@ -246,7 +265,7 @@ export default function JobDetailPage() {
 
         {/* Actions Strip */}
         <div className="pt-2 flex flex-wrap items-center gap-3">
-          {user && (user.id === job.employer.id || isAdmin) ? (
+          {user && can("job:manage_own") && user.id === job.employer.id ? (
             <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
@@ -256,15 +275,17 @@ export default function JobDetailPage() {
                 <Pencil size={14} />
                 <span>Edit Job</span>
               </button>
-              <Link
-                href={`/jobs/${job.id}/applicants`}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
-              >
-                <Users size={14} />
-                <span>Review Applicants</span>
-              </Link>
+              {can("applicant:view") && (
+                <Link
+                  href={`/jobs/${job.id}/applicants`}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+                >
+                  <Users size={14} />
+                  <span>Review Applicants</span>
+                </Link>
+              )}
             </div>
-          ) : user && user.id !== job.employer.id ? (
+          ) : user && can("chat:use") && can("job:apply") && user.id !== job.employer.id ? (
             <button
               type="button"
               onClick={handleStartMessage}
@@ -288,7 +309,7 @@ export default function JobDetailPage() {
             Sign In Now
           </Link>
         </div>
-      ) : user && (user.id === job.employer.id || isAdmin) ? (
+      ) : user && can("job:manage_own") && user.id === job.employer.id ? (
         <div className="surface-card p-6 border-primary-200 bg-primary-50/40 space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-primary-900 font-bold text-sm">
@@ -309,13 +330,15 @@ export default function JobDetailPage() {
               <Pencil size={14} />
               <span>Edit Job Details</span>
             </button>
-            <Link
-              href={`/jobs/${job.id}/applicants`}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
-            >
-              <Users size={14} />
-              <span>Review Applicants</span>
-            </Link>
+            {can("applicant:view") && (
+              <Link
+                href={`/jobs/${job.id}/applicants`}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                <Users size={14} />
+                <span>Review Applicants</span>
+              </Link>
+            )}
             <Link
               href="/jobs/my"
               className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
@@ -336,7 +359,7 @@ export default function JobDetailPage() {
             View All My Applications
           </Link>
         </div>
-      ) : user && isJobSeeker ? (
+      ) : user && can("job:apply") ? (
         <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm space-y-4">
           <h3 className="font-bold text-base text-gray-900">Apply for this Position</h3>
           <p className="text-xs text-gray-500">
@@ -381,7 +404,7 @@ export default function JobDetailPage() {
             </button>
           </form>
         </div>
-      ) : user && !isJobSeeker ? (
+      ) : user ? (
         <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 text-center text-xs text-slate-600">
           You are viewing this listing as a registered <strong>{user.roles.join(", ")}</strong>. Job applications are reserved for certified <strong>Job Seekers</strong>.
         </div>
@@ -542,4 +565,3 @@ export default function JobDetailPage() {
     </div>
   );
 }
-

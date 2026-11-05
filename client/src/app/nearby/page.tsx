@@ -20,7 +20,7 @@ import { VerifiedBadge } from "../../components/VerifiedBadge";
 import { MachineTranslationNotice } from "../../components/MachineTranslationNotice";
 
 export default function NearbyJobsPage() {
-  const { user } = useAuth();
+  const { user, can, loading: authLoading } = useAuth();
   const { t, locale } = useLanguage();
 
   const [districts, setDistricts] = useState<any[]>([]);
@@ -37,6 +37,7 @@ export default function NearbyJobsPage() {
   const [showOriginalMap, setShowOriginalMap] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
+    if (authLoading) return;
     api.get("/master/districts").then((res) => {
       if (res?.districts) {
         setDistricts(res.districts);
@@ -44,12 +45,13 @@ export default function NearbyJobsPage() {
       }
     });
 
+    if (!can("job:nearby")) return;
     if (user?.lat && user?.lng) {
       fetchNearby(user.lat, user.lng, "50");
     } else if (user?.districtId) {
       fetchNearbyByDistrict(user.districtId, "50");
     }
-  }, [user, locale]);
+  }, [authLoading, can, user, locale]);
 
   const fetchNearby = async (lat: number, lng: number, radius = radiusKm) => {
     setLoading(true);
@@ -81,6 +83,19 @@ export default function NearbyJobsPage() {
       fetchNearby(6.9271, 79.8612, radius);
     }
   };
+
+  if (authLoading) {
+    return <div className="text-center py-12 text-gray-500 font-medium">Loading account permissions...</div>;
+  }
+
+  if (!can("job:nearby")) {
+    return (
+      <div className="max-w-md mx-auto text-center py-12 bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
+        <h1 className="font-bold text-gray-900">Nearby jobs are available to Job Seekers and Entrepreneurs.</h1>
+        {!user && <Link href="/login" className="mt-3 inline-block bg-primary-700 text-white font-bold text-xs px-4 py-2 rounded-lg">Sign In</Link>}
+      </div>
+    );
+  }
 
   const handleUseGps = () => {
     if (!navigator.geolocation) {
@@ -226,7 +241,6 @@ export default function NearbyJobsPage() {
           {nearbyJobs.map((job) => {
             const isOriginal = showOriginalMap[job.id];
             const titleToDisplay = isOriginal ? job.originalTitle : job.title;
-            const descToDisplay = isOriginal ? job.originalDescription : job.description;
 
             return (
               <div
@@ -236,7 +250,7 @@ export default function NearbyJobsPage() {
                 <div>
                   <div className="flex items-start justify-between gap-2">
                     <div>
-                      <div className="flex items-center space-x-2">
+                      {can("job:view_detail") && <div className="flex items-center space-x-2">
                         <span className="inline-block bg-primary-50 text-primary-800 border border-primary-200 text-xs font-bold px-2 py-0.5 rounded uppercase">
                           {job.category}
                         </span>
@@ -245,29 +259,29 @@ export default function NearbyJobsPage() {
                           <Navigation size={11} />
                           <span>{job.distanceKm} km away</span>
                         </span>
-                      </div>
+                      </div>}
                       <h2 className="font-bold text-base sm:text-lg text-gray-900 mt-2 leading-snug">
                         {titleToDisplay}
                       </h2>
                     </div>
-                    <VerifiedBadge isVerified={job.employer?.isVerified} size="sm" />
+                    {can("job:view_detail") && <VerifiedBadge isVerified={job.employer?.isVerified} size="sm" />}
                   </div>
 
-                  <MachineTranslationNotice
+                  {can("job:view_detail") && <MachineTranslationNotice
                     isMachineTranslated={job.isMachineTranslated}
                     showOriginal={!!isOriginal}
                     onToggle={() => toggleOriginal(job.id)}
                     sourceLanguage={job.sourceLanguage}
-                  />
+                  />}
 
                   <div className="mt-2 text-xs text-gray-600 flex flex-wrap items-center gap-x-4 gap-y-1">
-                    <span className="flex items-center space-x-1">
+                    {can("job:view_detail") && <span className="flex items-center space-x-1">
                       <Building2 size={14} className="text-gray-400" />
                       <span className="font-semibold text-gray-800">{job.employer?.companyName}</span>
-                    </span>
+                    </span>}
                     <span className="flex items-center space-x-1">
                       <MapPin size={14} className="text-gray-400" />
-                      <span>{job.district?.nameEn} (~{job.lat?.toFixed(2)}, {job.lng?.toFixed(2)})</span>
+                      <span>{job.district?.nameEn}</span>
                     </span>
                     <span className="flex items-center space-x-1 text-emerald-800 font-bold">
                       <DollarSign size={14} />
@@ -275,20 +289,20 @@ export default function NearbyJobsPage() {
                     </span>
                   </div>
 
-                  {descToDisplay && (
+                  {can("job:view_detail") && job.description && (
                     <p className="text-gray-600 text-xs mt-2.5 line-clamp-2 leading-relaxed">
-                      {descToDisplay}
+                      {job.description}
                     </p>
                   )}
                 </div>
 
                 <div className="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between">
-                  <Link
+                  {can("job:view_detail") ? <Link
                     href={`/jobs/${job.id}`}
                     className="text-xs font-bold bg-primary-700 hover:bg-primary-800 text-white px-3.5 py-2 rounded-lg shadow-sm"
                   >
-                    View & Apply
-                  </Link>
+                    {can("job:apply") ? "View & Apply" : "View details"}
+                  </Link> : <span className="text-xs text-gray-500">Limited public listing</span>}
                   <span className="text-[11px] text-gray-400">
                     {job.distanceKm} km
                   </span>
@@ -301,4 +315,3 @@ export default function NearbyJobsPage() {
     </div>
   );
 }
-

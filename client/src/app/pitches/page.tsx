@@ -10,7 +10,7 @@ import { VerifiedBadge } from "../../components/VerifiedBadge";
 import { MachineTranslationNotice } from "../../components/MachineTranslationNotice";
 
 export default function PitchesPage() {
-  const { user, isEntrepreneur, isFunder } = useAuth();
+  const { user, can, loading: authLoading } = useAuth();
   const { t, locale } = useLanguage();
 
   const [pitches, setPitches] = useState<any[]>([]);
@@ -23,11 +23,12 @@ export default function PitchesPage() {
   const [showOriginalMap, setShowOriginalMap] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
+    if (authLoading || !can("pitch:browse_approved")) return;
     api.get("/master/districts").then((res) => {
       if (res?.districts) setDistricts(res.districts);
     });
     fetchPitches();
-  }, [locale]);
+  }, [authLoading, can, locale]);
 
   const fetchPitches = async () => {
     setLoading(true);
@@ -50,6 +51,14 @@ export default function PitchesPage() {
     setShowOriginalMap((prev) => ({ ...prev, [pitchId]: !prev[pitchId] }));
   };
 
+  if (authLoading) {
+    return <div className="text-center py-12 text-gray-500 font-medium">Loading account permissions...</div>;
+  }
+
+  if (!can("pitch:browse_approved")) {
+    return <div className="max-w-md mx-auto text-center py-12 bg-white rounded-2xl border border-gray-200 p-6"><p className="font-bold text-gray-700">Approved pitches are available to Funders, Verifiers, and Administrators.</p>{!user && <Link href="/login" className="mt-3 inline-block text-teal-700 font-bold text-xs">Sign In</Link>}</div>;
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -64,7 +73,7 @@ export default function PitchesPage() {
           </p>
         </div>
 
-        {isEntrepreneur && (
+        {can("pitch:create") && (
           <Link
             href="/pitches/create"
             className="inline-flex items-center space-x-2 bg-teal-700 hover:bg-teal-800 text-white font-bold py-2.5 px-4 rounded-xl text-sm shadow transition"
@@ -199,4 +208,3 @@ export default function PitchesPage() {
     </div>
   );
 }
-

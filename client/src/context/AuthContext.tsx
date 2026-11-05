@@ -22,6 +22,7 @@ export interface User {
   preferredLanguage: string;
   isVerified: boolean;
   roles: string[];
+  permissions: string[];
   jobSeekerProfile?: any;
   employerProfile?: any;
   entrepreneurProfile?: any;
@@ -42,6 +43,7 @@ interface AuthContextType {
   register: (data: any) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
+  can: (permission: string) => boolean;
   isAdmin: boolean;
   isVerifier: boolean;
   isEmployer: boolean;
@@ -57,6 +59,7 @@ const AuthContext = createContext<AuthContextType>({
   register: async () => {},
   logout: async () => {},
   refreshUser: async () => {},
+  can: () => false,
   isAdmin: false,
   isVerifier: false,
   isEmployer: false,
@@ -68,6 +71,7 @@ const AuthContext = createContext<AuthContextType>({
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
+  const [guestPermissions, setGuestPermissions] = useState<string[]>([]);
   const { setLocale } = useLanguage();
 
   const refreshUser = useCallback(async () => {
@@ -91,6 +95,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     refreshUser();
   }, [refreshUser]);
+
+  useEffect(() => {
+    api.get<{ guestPermissions: string[] }>("/auth/register")
+      .then((response) => setGuestPermissions(response.guestPermissions || []))
+      .catch((error) => console.error("Failed to load public permissions:", error));
+  }, []);
 
   const login = async (credentials: { email: string; password: string }) => {
     const res = await api.post<{ user: User }>("/auth/login", credentials);
@@ -119,11 +129,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const roles = user?.roles || [];
   const isAdmin = roles.includes("Admin");
-  const isVerifier = roles.includes("Verifier") || isAdmin;
+  const isVerifier = roles.includes("Verifier");
   const isEmployer = roles.includes("Employer");
   const isEntrepreneur = roles.includes("Entrepreneur");
   const isJobSeeker = roles.includes("JobSeeker");
   const isFunder = roles.includes("Funder");
+  const can = useCallback(
+    (permission: string) => (user?.permissions || guestPermissions).includes(permission),
+    [guestPermissions, user]
+  );
 
   return (
     <AuthContext.Provider
@@ -134,6 +148,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         register,
         logout,
         refreshUser,
+        can,
         isAdmin,
         isVerifier,
         isEmployer,

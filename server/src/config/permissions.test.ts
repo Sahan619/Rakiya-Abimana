@@ -4,6 +4,7 @@ import { Role } from "@prisma/client";
 import { NextFunction, Request, Response } from "express";
 import {
   CHAT_PAIRS,
+  GUEST_PERMISSIONS,
   PERMISSION_NAMES,
   Permission,
   ROLE_DEFINITIONS,
@@ -97,6 +98,10 @@ test("TrainingProvider is disabled and cannot self-register", () => {
   assert.deepEqual(ROLE_DEFINITIONS[Role.TrainingProvider].permissions, []);
   assert.equal(ROLE_DEFINITIONS[Role.TrainingProvider].selfRegistrable, false);
   assert.equal(isRoleEnabled(Role.TrainingProvider), false);
+});
+
+test("Guest can only list public jobs", () => {
+  assert.deepEqual(GUEST_PERMISSIONS, ["job:list_public"]);
 });
 
 test("multiple roles contribute a union and disabled roles contribute nothing", () => {

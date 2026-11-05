@@ -4,14 +4,17 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { Bell, CheckCheck, ShieldCheck, ClipboardList, MessageSquare, HeartHandshake, Info } from "lucide-react";
 import { api } from "../../lib/api";
+import { useAuth } from "../../context/AuthContext";
 
 export default function NotificationsPage() {
+  const { can, loading: authLoading, user } = useAuth();
   const [notifications, setNotifications] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (authLoading || !can("notification:view_own")) return;
     fetchNotifications();
-  }, []);
+  }, [authLoading, can]);
 
   const fetchNotifications = async () => {
     setLoading(true);
@@ -59,6 +62,14 @@ export default function NotificationsPage() {
         return <Info size={20} className="text-gray-700" />;
     }
   };
+
+  if (authLoading) {
+    return <div className="text-center py-12 text-gray-500 font-medium">Checking access...</div>;
+  }
+
+  if (!can("notification:view_own")) {
+    return <div className="max-w-md mx-auto text-center py-12 bg-white rounded-2xl border border-gray-200 p-6"><p className="font-bold text-gray-700">{user ? "Notifications are not available to this account." : "Please sign in to view notifications."}</p>{!user && <Link href="/login" className="mt-3 inline-block text-primary-700 font-bold text-xs">Sign In</Link>}</div>;
+  }
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
@@ -129,4 +140,3 @@ export default function NotificationsPage() {
     </div>
   );
 }
-

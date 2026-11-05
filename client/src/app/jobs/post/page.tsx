@@ -9,7 +9,7 @@ import { useLanguage } from "../../../context/LanguageContext";
 import { api } from "../../../lib/api";
 
 export default function PostJobPage() {
-  const { user, isEmployer, isEntrepreneur, isAdmin } = useAuth();
+  const { user, can, loading: authLoading } = useAuth();
   const { t, locale } = useLanguage();
   const router = useRouter();
 
@@ -63,6 +63,10 @@ export default function PostJobPage() {
     }
   };
 
+  if (authLoading) {
+    return <div className="text-center py-12 text-gray-500 font-medium">Loading account permissions...</div>;
+  }
+
   if (!user) {
     return (
       <div className="max-w-md mx-auto text-center py-12 bg-white rounded-2xl border border-gray-200 p-6">
@@ -74,16 +78,15 @@ export default function PostJobPage() {
     );
   }
 
-  // Role Authorization Check
-  if (!isEmployer && !isEntrepreneur && !isAdmin) {
+  if (!can("job:create")) {
     return (
       <div className="max-w-xl mx-auto my-8 bg-white border border-slate-200 rounded-2xl p-6 sm:p-8 shadow-sm text-center space-y-4">
         <div className="w-14 h-14 bg-slate-100 text-slate-700 rounded-2xl flex items-center justify-center mx-auto">
           <Briefcase size={32} />
         </div>
-        <h1 className="text-xl font-bold text-gray-900">Employer or Entrepreneur Role Required</h1>
+        <h1 className="text-xl font-bold text-gray-900">Employer Role Required</h1>
         <p className="text-xs sm:text-sm text-gray-600 leading-relaxed">
-          Job postings are reserved for registered Employers and Entrepreneurs hiring personnel for business activities. If you need to hire, you can update your roles or create an employer account.
+          Job postings are reserved for Employers hiring personnel for business activities.
         </p>
         <Link
           href="/profile"
@@ -266,4 +269,3 @@ export default function PostJobPage() {
     </div>
   );
 }
-

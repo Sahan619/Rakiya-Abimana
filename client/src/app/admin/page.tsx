@@ -21,12 +21,13 @@ import { api } from "../../lib/api";
 import { VerifiedBadge } from "../../components/VerifiedBadge";
 
 export default function AdminDashboardPage() {
-  const { isAdmin } = useAuth();
+  const { can } = useAuth();
 
   const [activeTab, setActiveTab] = useState<"users" | "settings" | "master" | "audit">("users");
 
   // User management state
   const [users, setUsers] = useState<any[]>([]);
+  const [availableRoles, setAvailableRoles] = useState<Array<{ value: string; label: string; selfRegistrable: boolean }>>([]);
   const [searchUser, setSearchUser] = useState("");
   const [userRoleFilter, setUserRoleFilter] = useState("");
   const [userStatusFilter, setUserStatusFilter] = useState("");
@@ -57,11 +58,11 @@ export default function AdminDashboardPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchUsers();
-    fetchSettings();
-    fetchMasterData();
-    fetchAuditLogs();
-  }, []);
+    if (can("user:manage")) fetchUsers();
+    if (can("settings:manage")) fetchSettings();
+    if (can("masterdata:manage")) fetchMasterData();
+    if (can("audit:view")) fetchAuditLogs();
+  }, [can]);
 
   const fetchUsers = async () => {
     setLoadingUsers(true);
@@ -73,6 +74,7 @@ export default function AdminDashboardPage() {
 
       const res = await api.get(`/admin/users?${q.toString()}`);
       if (res?.users) setUsers(res.users);
+      if (res?.availableRoles) setAvailableRoles(res.availableRoles);
     } catch (err: any) {
       console.error("Failed to load users", err);
     } finally {
@@ -168,7 +170,8 @@ export default function AdminDashboardPage() {
     }
   };
 
-  if (!isAdmin) {
+  const hasAdminAccess = can("user:manage") || can("settings:manage") || can("masterdata:manage") || can("audit:view");
+  if (!hasAdminAccess) {
     return (
       <div className="max-w-md mx-auto text-center py-12 bg-white rounded-2xl border border-gray-200 p-6">
         <SlidersHorizontal className="mx-auto text-gray-400 mb-3" size={40} />
@@ -190,11 +193,11 @@ export default function AdminDashboardPage() {
 
         <nav className="mt-6 grid gap-1" aria-label="Admin dashboard sections">
           {[
-            { id: "users" as const, label: "User accounts & roles", icon: Users },
-            { id: "settings" as const, label: "System settings", icon: Settings },
-            { id: "master" as const, label: "Master data", icon: Database },
-            { id: "audit" as const, label: "Audit trail", icon: History }
-          ].map(({ id, label, icon: Icon }) => (
+            { id: "users" as const, label: "User accounts & roles", icon: Users, permission: "user:manage" },
+            { id: "settings" as const, label: "System settings", icon: Settings, permission: "settings:manage" },
+            { id: "master" as const, label: "Master data", icon: Database, permission: "masterdata:manage" },
+            { id: "audit" as const, label: "Audit trail", icon: History, permission: "audit:view" }
+          ].filter((tab) => can(tab.permission)).map(({ id, label, icon: Icon }) => (
             <button key={id} type="button" onClick={() => setActiveTab(id)} aria-current={activeTab === id ? "page" : undefined} className={`flex min-h-11 items-center gap-3 rounded-xl px-3 text-left text-sm font-semibold transition ${activeTab === id ? "bg-primary-700 text-white shadow-sm" : "text-slate-600 hover:bg-primary-50 hover:text-primary-800"}`}>
               <Icon size={17} />{label}
             </button>
@@ -236,12 +239,7 @@ export default function AdminDashboardPage() {
                 className="px-3 py-2 border border-gray-300 rounded-xl text-xs bg-white"
               >
                 <option value="">All Roles</option>
-                <option value="Admin">Admin</option>
-                <option value="Verifier">Verifier</option>
-                <option value="JobSeeker">JobSeeker</option>
-                <option value="Employer">Employer</option>
-                <option value="Entrepreneur">Entrepreneur</option>
-                <option value="Funder">Funder</option>
+                {availableRoles.map((roleOption) => <option key={roleOption.value} value={roleOption.value}>{roleOption.label}</option>)}
               </select>
               <select
                 value={userStatusFilter}
@@ -504,8 +502,9 @@ export default function AdminDashboardPage() {
                   onChange={(e) => setNewRoles([e.target.value])}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs bg-white"
                 >
-                  <option value="Verifier">Verifier (Verification Reviewer)</option>
-                  <option value="Admin">Administrator (Super Admin)</option>
+                  {availableRoles.filter((roleOption) => !roleOption.selfRegistrable).map((roleOption) => (
+                    <option key={roleOption.value} value={roleOption.value}>{roleOption.label}</option>
+                  ))}
                 </select>
               </div>
 

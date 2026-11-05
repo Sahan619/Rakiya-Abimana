@@ -31,9 +31,11 @@ export default function LoginPage() {
     setLoading(true);
     try {
       const signedInUser = await login({ email, password });
-      if (signedInUser.roles.includes("Admin")) router.push("/admin");
-      else if (signedInUser.roles.includes("Verifier")) router.push("/verifier");
-      else if (signedInUser.roles.includes("Employer") || signedInUser.roles.includes("Entrepreneur")) router.push("/jobs/my");
+      if (signedInUser.permissions.includes("user:manage")) router.push("/admin");
+      else if (signedInUser.permissions.includes("verification:review")) router.push("/verifier");
+      else if (signedInUser.permissions.includes("job:manage_own")) router.push("/jobs/my");
+      else if (signedInUser.permissions.includes("pitch:manage_own")) router.push("/pitches/my");
+      else if (signedInUser.permissions.includes("pitch:browse_approved")) router.push("/pitches");
       else router.push("/jobs");
     } catch (loginError) {
       setError(loginError instanceof Error ? loginError.message : "Unable to sign in. Please check your details and try again.");

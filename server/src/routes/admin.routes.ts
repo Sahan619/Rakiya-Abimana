@@ -63,7 +63,11 @@ router.get("/users", requirePermission("user:manage"), async (req: Request, res:
 
     const availableRoles = Object.values(Role)
       .filter(isRoleEnabled)
-      .map((role) => ({ value: role, label: ROLE_DEFINITIONS[role].label }));
+      .map((role) => ({
+        value: role,
+        label: ROLE_DEFINITIONS[role].label,
+        selfRegistrable: ROLE_DEFINITIONS[role].selfRegistrable
+      }));
     return res.json({ users: safeUsers, count: safeUsers.length, availableRoles });
   } catch (err) {
     return res.status(500).json({ error: "Failed to list users" });

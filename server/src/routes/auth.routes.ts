@@ -3,8 +3,9 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { PrismaClient, Role } from "@prisma/client";
 import { authenticateToken } from "../middleware/auth.middleware";
+import { requirePermission } from "../middleware/role.middleware";
 import { SRI_LANKA_DISTRICTS } from "../constants/districts";
-import { ROLE_DEFINITIONS, permissionsForRoles } from "../config/permissions";
+import { ROLE_DEFINITIONS, permissionsForGuest, permissionsForRoles } from "../config/permissions";
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -37,7 +38,7 @@ router.get("/register", (_req: Request, res: Response) => {
   const roles = Object.values(Role)
     .filter(isSelfRegistrableRole)
     .map((role) => ({ value: role, label: ROLE_DEFINITIONS[role].label }));
-  return res.json({ roles });
+  return res.json({ roles, guestPermissions: permissionsForGuest() });
 });
 
 router.post("/register", async (req: Request, res: Response) => {
@@ -389,7 +390,7 @@ router.get("/me", authenticateToken, async (req: Request, res: Response) => {
 });
 
 // PUT /api/auth/profile
-router.put("/profile", authenticateToken, async (req: Request, res: Response) => {
+router.put("/profile", authenticateToken, requirePermission("profile:manage_own"), async (req: Request, res: Response) => {
   try {
     const { fullName, phone, districtId, preferredLanguage, lat, lng } = req.body;
 
@@ -439,7 +440,7 @@ router.put("/profile", authenticateToken, async (req: Request, res: Response) =>
 });
 
 // PUT /api/auth/password
-router.put("/password", authenticateToken, async (req: Request, res: Response) => {
+router.put("/password", authenticateToken, requirePermission("profile:manage_own"), async (req: Request, res: Response) => {
   try {
     const { currentPassword, newPassword } = req.body;
     if (!currentPassword || !newPassword) {
