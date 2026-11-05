@@ -5,6 +5,7 @@ import { NextFunction, Request, Response } from "express";
 import {
   GUEST_PERMISSIONS,
   PERMISSION_NAMES,
+  PERMISSIONS,
   Permission,
   ROLE_DEFINITIONS,
   chatPairAllows,
@@ -20,6 +21,7 @@ const expectedPermissions: Record<Role, Permission[]> = {
     "job:list_public",
     "job:view_detail",
     "pitch:browse_approved",
+    "funder:browse",
     "user:manage",
     "settings:manage",
     "masterdata:manage",
@@ -30,6 +32,7 @@ const expectedPermissions: Record<Role, Permission[]> = {
   [Role.Verifier]: [
     "job:list_public",
     "pitch:browse_approved",
+    "funder:browse",
     "verification:review",
     "pitch:review",
     "profile:manage_own",
@@ -47,10 +50,10 @@ const expectedPermissions: Record<Role, Permission[]> = {
     "notification:view_own"
   ],
   [Role.Entrepreneur]: [
-    "job:list_public",
-    "job:nearby",
     "pitch:create",
     "pitch:manage_own",
+    "funder:browse",
+    "funder:contact",
     "chat:use",
     "verification:submit",
     "profile:manage_own",
@@ -72,6 +75,7 @@ const expectedPermissions: Record<Role, Permission[]> = {
     "job:list_public",
     "pitch:browse_approved",
     "pitch:express_interest",
+    "funder:manage_listing",
     "chat:use",
     "verification:submit",
     "profile:manage_own",
@@ -186,6 +190,20 @@ test("requirePermission rejects unverified users for verified permissions", () =
     error: "Verification required. Please complete identity and business verification to perform this action."
   });
   assert.equal(nextCalled, false);
+});
+
+test("funder directory access requires a verified Entrepreneur", () => {
+  assert.equal(hasPermission([Role.Entrepreneur], "funder:browse"), true);
+  assert.equal(hasPermission([Role.Entrepreneur], "funder:contact"), true);
+  assert.equal(hasPermission([Role.Admin], "funder:browse"), true);
+  assert.equal(hasPermission([Role.Verifier], "funder:browse"), true);
+  assert.equal(PERMISSIONS["funder:browse"].requiresVerified, true);
+  assert.equal(PERMISSIONS["funder:contact"].requiresVerified, true);
+  assert.equal(hasPermission([Role.Funder], "funder:manage_listing"), true);
+
+  const { response, statusCode } = makeResponse();
+  requirePermission("funder:browse")(makeRequest([Role.Entrepreneur], false), response, () => {});
+  assert.equal(statusCode(), 403);
 });
 
 test("chat pairs permit only the defined role pairings and context types", () => {

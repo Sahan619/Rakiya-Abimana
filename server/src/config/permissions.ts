@@ -14,6 +14,9 @@ export const PERMISSION_NAMES = [
   "pitch:manage_own",
   "pitch:browse_approved",
   "pitch:express_interest",
+  "funder:browse",
+  "funder:contact",
+  "funder:manage_listing",
   "chat:use",
   "verification:submit",
   "verification:review",
@@ -30,6 +33,7 @@ export type Permission = typeof PERMISSION_NAMES[number];
 
 interface PermissionMetadata {
   requiresVerified?: boolean;
+  verificationExemptRoles?: Role[];
 }
 
 export const PERMISSIONS: Record<Permission, PermissionMetadata> = {
@@ -42,6 +46,9 @@ export const PERMISSIONS: Record<Permission, PermissionMetadata> = {
   "job:manage_own": {},
   "applicant:view": {},
   "applicant:update_status": {},
+  "funder:browse": { requiresVerified: true, verificationExemptRoles: [Role.Admin, Role.Verifier] },
+  "funder:contact": { requiresVerified: true },
+  "funder:manage_listing": {},
   "pitch:create": { requiresVerified: true },
   "pitch:manage_own": {},
   "pitch:browse_approved": {},
@@ -71,6 +78,11 @@ const publicAndAccountPermissions: Permission[] = [
   "notification:view_own"
 ];
 
+const accountPermissions: Permission[] = [
+  "profile:manage_own",
+  "notification:view_own"
+];
+
 export const ROLE_DEFINITIONS: Record<Role, RoleDefinition> = {
   [Role.Admin]: {
     label: "Admin",
@@ -80,6 +92,7 @@ export const ROLE_DEFINITIONS: Record<Role, RoleDefinition> = {
       ...publicAndAccountPermissions,
       "job:view_detail",
       "pitch:browse_approved",
+      "funder:browse",
       "user:manage",
       "settings:manage",
       "masterdata:manage",
@@ -93,6 +106,7 @@ export const ROLE_DEFINITIONS: Record<Role, RoleDefinition> = {
     permissions: [
       ...publicAndAccountPermissions,
       "pitch:browse_approved",
+      "funder:browse",
       "verification:review",
       "pitch:review"
     ]
@@ -116,10 +130,11 @@ export const ROLE_DEFINITIONS: Record<Role, RoleDefinition> = {
     enabled: true,
     selfRegistrable: true,
     permissions: [
-      ...publicAndAccountPermissions,
-      "job:nearby",
+      ...accountPermissions,
       "pitch:create",
       "pitch:manage_own",
+      "funder:browse",
+      "funder:contact",
       "chat:use",
       "verification:submit"
     ]
@@ -147,6 +162,7 @@ export const ROLE_DEFINITIONS: Record<Role, RoleDefinition> = {
       ...publicAndAccountPermissions,
       "pitch:browse_approved",
       "pitch:express_interest",
+      "funder:manage_listing",
       "chat:use",
       "verification:submit"
     ]
@@ -162,11 +178,12 @@ export const ROLE_DEFINITIONS: Record<Role, RoleDefinition> = {
 export const GUEST_PERMISSIONS: Permission[] = ["job:list_public"];
 
 export const CHAT_PAIRS: ReadonlyArray<{
-  type: "JOB_APPLICATION" | "PITCH_INTEREST";
+  type: "JOB_APPLICATION" | "PITCH_INTEREST" | "FUNDER_DIRECTORY";
   roles: readonly [Role, Role];
 }> = [
   { type: "JOB_APPLICATION", roles: [Role.JobSeeker, Role.Employer] },
-  { type: "PITCH_INTEREST", roles: [Role.Entrepreneur, Role.Funder] }
+  { type: "PITCH_INTEREST", roles: [Role.Entrepreneur, Role.Funder] },
+  { type: "FUNDER_DIRECTORY", roles: [Role.Entrepreneur, Role.Funder] }
 ];
 
 export function chatPairAllows(
