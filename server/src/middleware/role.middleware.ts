@@ -1,42 +1,28 @@
 import { Request, Response, NextFunction } from "express";
-import { Role } from "@prisma/client";
+import { Permission, PERMISSIONS, hasPermission } from "../config/permissions";
 
-/**
- * Middleware to require at least one of the specified roles
- */
-export function requireRoles(...allowedRoles: Role[]) {
+export function requirePermission(...permissions: Permission[]) {
   return (req: Request, res: Response, next: NextFunction) => {
     if (!req.user) {
       return res.status(401).json({ error: "Authentication required" });
     }
 
-    const hasRole = req.user.roles.some((r) => allowedRoles.includes(r));
-    if (!hasRole) {
+    const grantedPermissions = permissions.filter((permission) =>
+      hasPermission(req.user!.roles, permission)
+    );
+    if (grantedPermissions.length === 0) {
+      return res.status(403).json({ error: "Access denied. Insufficient permissions." });
+    }
+
+    const permitted = grantedPermissions.some((permission) =>
+      !PERMISSIONS[permission].requiresVerified || req.user!.isVerified
+    );
+    if (!permitted) {
       return res.status(403).json({
-        error: "Access denied. Insufficient role permissions.",
-        requiredRoles: allowedRoles
+        error: "Verification required. Please complete identity and business verification to perform this action."
       });
     }
 
-    next();
+    return next();
   };
 }
-
-/**
- * Middleware to require identity/business verification
- */
-export function requireVerified(req: Request, res: Response, next: NextFunction) {
-  if (!req.user) {
-    return res.status(401).json({ error: "Authentication required" });
-  }
-
-  if (!req.user.isVerified) {
-    return res.status(403).json({
-      error: "Verification required. Please complete identity and business verification to perform this action.",
-      isVerified: false
-    });
-  }
-
-  next();
-}
-

@@ -1,4 +1,5 @@
 import express, { Request, Response, NextFunction } from "express";
+import { PrismaClient } from "@prisma/client";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import path from "path";
@@ -15,8 +16,11 @@ import messageRoutes from "./routes/message.routes";
 import notificationRoutes from "./routes/notification.routes";
 import adminRoutes from "./routes/admin.routes";
 import masterRoutes from "./routes/master.routes";
+import { authenticateToken } from "./middleware/auth.middleware";
+import { hasPermission } from "./config/permissions";
 
 export const app = express();
+const prisma = new PrismaClient();
 
 const CLIENT_URL = process.env.CLIENT_URL || "http://localhost:3000";
 
@@ -41,7 +45,41 @@ app.use(cookieParser());
 
 // Static uploads directory for verification documents
 const uploadsPath = path.join(__dirname, "../uploads");
-app.use("/uploads", express.static(uploadsPath));
+app.use(
+  "/uploads",
+  authenticateToken,
+  async (req, res, next) => {
+    try {
+      const fileName = path.basename(req.path);
+      const fileUrl = `/uploads/${fileName}`;
+      const verification = await prisma.verificationRequest.findFirst({
+        where: {
+          OR: [
+            { gramaNiladhariDocUrl: fileUrl },
+            { businessRegDocUrl: fileUrl },
+            { institutionDocUrl: fileUrl }
+          ]
+        },
+        select: { userId: true }
+      });
+
+      if (!verification) {
+        return res.status(404).json({ error: "File not found" });
+      }
+
+      const isVerifier = hasPermission(req.user!.roles, "verification:review");
+      if (!isVerifier && verification.userId !== req.user!.id) {
+        return res.status(403).json({ error: "Access denied. Insufficient permissions." });
+      }
+
+      return next();
+    } catch (error) {
+      console.error("Upload access check error:", error);
+      return res.status(500).json({ error: "Failed to verify file access" });
+    }
+  },
+  express.static(uploadsPath)
+);
 
 // Health check
 app.get("/health", (_req: Request, res: Response) => {

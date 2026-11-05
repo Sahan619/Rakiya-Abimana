@@ -1,12 +1,15 @@
 import { Router, Request, Response } from "express";
 import { PrismaClient } from "@prisma/client";
 import { authenticateToken } from "../middleware/auth.middleware";
+import { requirePermission } from "../middleware/role.middleware";
 
 const router = Router();
 const prisma = new PrismaClient();
 
+router.use(authenticateToken, requirePermission("notification:view_own"));
+
 // GET /api/notifications
-router.get("/", authenticateToken, async (req: Request, res: Response) => {
+router.get("/", async (req: Request, res: Response) => {
   try {
     const notifications = await prisma.notification.findMany({
       where: { userId: req.user!.id },
@@ -25,7 +28,7 @@ router.get("/", authenticateToken, async (req: Request, res: Response) => {
 });
 
 // PATCH /api/notifications/:id/read
-router.patch("/:id/read", authenticateToken, async (req: Request, res: Response) => {
+router.patch("/:id/read", async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     await prisma.notification.updateMany({
@@ -39,7 +42,7 @@ router.patch("/:id/read", authenticateToken, async (req: Request, res: Response)
 });
 
 // POST /api/notifications/mark-all-read
-router.post("/mark-all-read", authenticateToken, async (req: Request, res: Response) => {
+router.post("/mark-all-read", async (req: Request, res: Response) => {
   try {
     await prisma.notification.updateMany({
       where: { userId: req.user!.id, isRead: false },
@@ -52,4 +55,3 @@ router.post("/mark-all-read", authenticateToken, async (req: Request, res: Respo
 });
 
 export default router;
-

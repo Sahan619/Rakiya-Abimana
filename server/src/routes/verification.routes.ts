@@ -1,7 +1,7 @@
 import { Router, Request, Response } from "express";
 import { PrismaClient, VerificationStatus, Role } from "@prisma/client";
 import { authenticateToken } from "../middleware/auth.middleware";
-import { requireRoles } from "../middleware/role.middleware";
+import { requirePermission } from "../middleware/role.middleware";
 import { uploadVerificationDocs } from "../middleware/upload.middleware";
 import { encryptData, decryptData } from "../services/crypto.service";
 import { getVerificationHook } from "../services/nic.service";
@@ -15,6 +15,7 @@ const prisma = new PrismaClient();
 router.post(
   "/submit",
   authenticateToken,
+  requirePermission("verification:submit"),
   uploadVerificationDocs.fields([
     { name: "gramaNiladhariDoc", maxCount: 1 },
     { name: "businessRegDoc", maxCount: 1 },
@@ -35,9 +36,6 @@ router.post(
       }
 
       const roles = user.roles.map((item) => item.role);
-      if (roles.includes(Role.Admin) || roles.includes(Role.Verifier)) {
-        return res.status(403).json({ error: "Administrative and verifier accounts do not submit public verification applications." });
-      }
 
       const hasNic = typeof nicNumber === "string" && nicNumber.trim().length > 0;
       const hasDocument = Boolean(
@@ -165,11 +163,11 @@ router.get("/my-status", authenticateToken, async (req: Request, res: Response) 
   }
 });
 
-// GET /api/verification/queue - Verifiers & Admins review pending verifications
+// GET /api/verification/queue - Verifiers review pending verifications
 router.get(
   "/queue",
   authenticateToken,
-  requireRoles(Role.Verifier, Role.Admin),
+  requirePermission("verification:review"),
   async (req: Request, res: Response) => {
     try {
       const { status = "PENDING" } = req.query;
@@ -195,7 +193,7 @@ router.get(
         orderBy: { createdAt: "asc" }
       });
 
-      // Decrypt raw NIC only for Verifier / Admin
+      // Decrypt raw NIC only for Verifiers.
       const enriched = requests.map((item) => {
         let decryptedNic: string | null = null;
         if (item.encryptedNic) {
@@ -239,11 +237,11 @@ router.get(
   }
 );
 
-// POST /api/verification/:id/review - Verifier/Admin approves or rejects
+// POST /api/verification/:id/review - Verifier approves or rejects
 router.post(
   "/:id/review",
   authenticateToken,
-  requireRoles(Role.Verifier, Role.Admin),
+  requirePermission("verification:review"),
   async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
@@ -324,4 +322,3 @@ router.post(
 );
 
 export default router;
-

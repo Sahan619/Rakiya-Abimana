@@ -1,7 +1,8 @@
 import { Router, Request, Response } from "express";
 import { PrismaClient, JobStatus, Role, ApplicationStatus } from "@prisma/client";
 import { authenticateToken, optionalAuth } from "../middleware/auth.middleware";
-import { requireRoles, requireVerified } from "../middleware/role.middleware";
+import { requirePermission } from "../middleware/role.middleware";
+import { hasPermission } from "../config/permissions";
 import { calculateHaversineDistance, roundCoordinates } from "../services/geo.service";
 import { translateWithCache } from "../services/translation.service";
 import { SRI_LANKA_DISTRICTS } from "../constants/districts";
@@ -95,13 +96,13 @@ router.get("/", optionalAuth, async (req: Request, res: Response) => {
       orderBy: { createdAt: "desc" }
     });
 
-    const isGuest = !req.user;
+    const isRestricted = !req.user || !hasPermission(req.user.roles, "job:view_detail");
 
     const enrichedJobs = await Promise.all(
       jobs.map(async (job) => {
         const enriched = await enrichJobWithTranslation(prisma, job, String(lang));
-        if (isGuest) {
-          // Guests see limited fields and must sign in to apply
+        if (isRestricted) {
+          // Users without detail access receive the same limited cards as guests.
           return {
             id: enriched.id,
             title: enriched.title,
@@ -140,7 +141,7 @@ router.get("/", optionalAuth, async (req: Request, res: Response) => {
 });
 
 // GET /api/jobs/nearby - Geospatial matching with Haversine formula
-router.get("/nearby", optionalAuth, async (req: Request, res: Response) => {
+router.get("/nearby", authenticateToken, requirePermission("job:nearby"), async (req: Request, res: Response) => {
   try {
     let userLat = req.query.lat ? parseFloat(String(req.query.lat)) : req.user?.lat;
     let userLng = req.query.lng ? parseFloat(String(req.query.lng)) : req.user?.lng;
@@ -210,7 +211,7 @@ router.get("/nearby", optionalAuth, async (req: Request, res: Response) => {
 });
 
 // GET /api/jobs/:id - Single job detail
-router.get("/:id", optionalAuth, async (req: Request, res: Response) => {
+router.get("/:id", authenticateToken, requirePermission("job:view_detail"), async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const lang = String(req.query.lang || req.user?.preferredLanguage || "en");
@@ -279,8 +280,7 @@ router.get("/:id", optionalAuth, async (req: Request, res: Response) => {
 router.post(
   "/",
   authenticateToken,
-  requireRoles(Role.Employer, Role.Entrepreneur, Role.Admin),
-  requireVerified,
+  requirePermission("job:create"),
   async (req: Request, res: Response) => {
     try {
       const {
@@ -361,7 +361,7 @@ router.post(
 router.put(
   "/:id",
   authenticateToken,
-  requireRoles(Role.Employer, Role.Entrepreneur, Role.Admin),
+  requirePermission("job:manage_own"),
   async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
@@ -486,7 +486,7 @@ router.put(
 router.patch(
   "/:id/status",
   authenticateToken,
-  requireRoles(Role.Employer, Role.Entrepreneur, Role.Admin),
+  requirePermission("job:manage_own"),
   async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
@@ -522,7 +522,7 @@ router.patch(
 router.post(
   "/:id/apply",
   authenticateToken,
-  requireRoles(Role.JobSeeker),
+  requirePermission("job:apply"),
   async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
@@ -591,7 +591,7 @@ router.post(
 router.get(
   "/my/applications",
   authenticateToken,
-  requireRoles(Role.JobSeeker),
+  requirePermission("application:view_own"),
   async (req: Request, res: Response) => {
   try {
     const applications = await prisma.jobApplication.findMany({
@@ -641,13 +641,13 @@ const getMyJobsHandler = async (req: Request, res: Response) => {
 router.get(
   "/my/posted",
   authenticateToken,
-  requireRoles(Role.Employer, Role.Entrepreneur, Role.Admin),
+  requirePermission("job:manage_own"),
   getMyJobsHandler
 );
 router.get(
   "/my",
   authenticateToken,
-  requireRoles(Role.Employer, Role.Entrepreneur, Role.Admin),
+  requirePermission("job:manage_own"),
   getMyJobsHandler
 );
 
@@ -655,7 +655,7 @@ router.get(
 router.get(
   "/:id/applicants",
   authenticateToken,
-  requireRoles(Role.Employer, Role.Entrepreneur, Role.Admin),
+  requirePermission("applicant:view"),
   async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
@@ -713,7 +713,11 @@ router.get(
 );
 
 // PATCH /api/jobs/applications/:appId/status - Employer updates applicant status
-router.patch("/applications/:appId/status", authenticateToken, async (req: Request, res: Response) => {
+router.patch(
+  "/applications/:appId/status",
+  authenticateToken,
+  requirePermission("applicant:update_status"),
+  async (req: Request, res: Response) => {
   try {
     const { appId } = req.params;
     const { status } = req.body;
@@ -721,7 +725,8 @@ router.patch("/applications/:appId/status", authenticateToken, async (req: Reque
     const application = await prisma.jobApplication.findUnique({
       where: { id: appId },
       include: { job: true }
-    });
+      }
+    );
 
     if (!application) {
       return res.status(404).json({ error: "Application not found" });
@@ -753,4 +758,3 @@ router.patch("/applications/:appId/status", authenticateToken, async (req: Reque
 });
 
 export default router;
-

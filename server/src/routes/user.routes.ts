@@ -1,14 +1,14 @@
 import { Router, Request, Response } from "express";
-import { PrismaClient, Role } from "@prisma/client";
+import { PrismaClient } from "@prisma/client";
 import { authenticateToken } from "../middleware/auth.middleware";
-import { requireRoles } from "../middleware/role.middleware";
+import { requirePermission } from "../middleware/role.middleware";
 import { roundCoordinates } from "../services/geo.service";
 
 const router = Router();
 const prisma = new PrismaClient();
 
 // GET /api/users/job-seeker-profile
-router.get("/job-seeker-profile", authenticateToken, requireRoles(Role.JobSeeker), async (req: Request, res: Response) => {
+router.get("/job-seeker-profile", authenticateToken, requirePermission("profile:manage_own"), async (req: Request, res: Response) => {
   try {
     const profile = await prisma.jobSeekerProfile.findUnique({
       where: { userId: req.user!.id }
@@ -20,7 +20,7 @@ router.get("/job-seeker-profile", authenticateToken, requireRoles(Role.JobSeeker
 });
 
 // POST /api/users/job-seeker-profile - Upsert job seeker profile
-router.post("/job-seeker-profile", authenticateToken, requireRoles(Role.JobSeeker), async (req: Request, res: Response) => {
+router.post("/job-seeker-profile", authenticateToken, requirePermission("profile:manage_own"), async (req: Request, res: Response) => {
   try {
     const { category, skills, trade, experienceYears, bio, educationQualifications, preferredCategories, preferredLocations, expectedSalary } = req.body;
 
@@ -62,7 +62,7 @@ router.post("/job-seeker-profile", authenticateToken, requireRoles(Role.JobSeeke
 });
 
 // GET /api/users/employer-profile
-router.get("/employer-profile", authenticateToken, requireRoles(Role.Employer), async (req: Request, res: Response) => {
+router.get("/employer-profile", authenticateToken, requirePermission("profile:manage_own"), async (req: Request, res: Response) => {
   try {
     const profile = await prisma.employerProfile.findUnique({
       where: { userId: req.user!.id }
@@ -74,7 +74,7 @@ router.get("/employer-profile", authenticateToken, requireRoles(Role.Employer), 
 });
 
 // POST /api/users/employer-profile - Upsert employer profile
-router.post("/employer-profile", authenticateToken, requireRoles(Role.Employer), async (req: Request, res: Response) => {
+router.post("/employer-profile", authenticateToken, requirePermission("profile:manage_own"), async (req: Request, res: Response) => {
   try {
     const { companyName, businessRegNumber, description, industry, businessAddress, contactPhone, website } = req.body;
 
@@ -112,7 +112,7 @@ router.post("/employer-profile", authenticateToken, requireRoles(Role.Employer),
 });
 
 // GET /api/users/funder-profile
-router.get("/funder-profile", authenticateToken, requireRoles(Role.Funder), async (req: Request, res: Response) => {
+router.get("/funder-profile", authenticateToken, requirePermission("profile:manage_own"), async (req: Request, res: Response) => {
   try {
     const profile = await prisma.funderProfile.findUnique({
       where: { userId: req.user!.id }
@@ -124,7 +124,7 @@ router.get("/funder-profile", authenticateToken, requireRoles(Role.Funder), asyn
 });
 
 // POST /api/users/funder-profile - Upsert funder profile
-router.post("/funder-profile", authenticateToken, requireRoles(Role.Funder), async (req: Request, res: Response) => {
+router.post("/funder-profile", authenticateToken, requirePermission("profile:manage_own"), async (req: Request, res: Response) => {
   try {
     const { accountType, organizationName, organizationType, fundingInterests, funderType, focusDistricts, focusSectors } = req.body;
 
@@ -161,12 +161,12 @@ router.post("/funder-profile", authenticateToken, requireRoles(Role.Funder), asy
   }
 });
 
-router.get("/entrepreneur-profile", authenticateToken, requireRoles(Role.Entrepreneur), async (req: Request, res: Response) => {
+router.get("/entrepreneur-profile", authenticateToken, requirePermission("profile:manage_own"), async (req: Request, res: Response) => {
   const profile = await prisma.entrepreneurProfile.findUnique({ where: { userId: req.user!.id } });
   return res.json({ profile: profile || null });
 });
 
-router.post("/entrepreneur-profile", authenticateToken, requireRoles(Role.Entrepreneur), async (req: Request, res: Response) => {
+router.post("/entrepreneur-profile", authenticateToken, requirePermission("profile:manage_own"), async (req: Request, res: Response) => {
   try {
     const { businessName, businessCategory, businessIdea, businessStage, fundingRequirement, skillsExperience } = req.body;
     const profile = await prisma.entrepreneurProfile.upsert({
@@ -180,12 +180,12 @@ router.post("/entrepreneur-profile", authenticateToken, requireRoles(Role.Entrep
   }
 });
 
-router.get("/training-provider-profile", authenticateToken, requireRoles(Role.TrainingProvider), async (req: Request, res: Response) => {
+router.get("/training-provider-profile", authenticateToken, requirePermission("profile:manage_own"), async (req: Request, res: Response) => {
   const profile = await prisma.trainingProviderProfile.findUnique({ where: { userId: req.user!.id } });
   return res.json({ profile: profile || null });
 });
 
-router.post("/training-provider-profile", authenticateToken, requireRoles(Role.TrainingProvider), async (req: Request, res: Response) => {
+router.post("/training-provider-profile", authenticateToken, requirePermission("profile:manage_own"), async (req: Request, res: Response) => {
   try {
     const { institutionName, trainingCategories, coursesOffered, accreditation, trainingLocation, contactPhone, website } = req.body;
     if (!institutionName?.trim()) return res.status(400).json({ error: "Institution name is required." });
@@ -256,4 +256,3 @@ router.get("/:id/public", async (req: Request, res: Response) => {
 });
 
 export default router;
-

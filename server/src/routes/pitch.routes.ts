@@ -1,7 +1,8 @@
 import { Router, Request, Response } from "express";
-import { PrismaClient, PitchStatus, Role, FundingType } from "@prisma/client";
-import { authenticateToken, optionalAuth } from "../middleware/auth.middleware";
-import { requireRoles, requireVerified } from "../middleware/role.middleware";
+import { PrismaClient, PitchStatus, FundingType } from "@prisma/client";
+import { authenticateToken } from "../middleware/auth.middleware";
+import { requirePermission } from "../middleware/role.middleware";
+import { hasPermission } from "../config/permissions";
 import { translateWithCache } from "../services/translation.service";
 import { createNotification } from "../services/notification.service";
 import { logAuditAction } from "../services/audit.service";
@@ -36,7 +37,7 @@ async function enrichPitchWithTranslation(prismaClient: PrismaClient, pitch: any
 }
 
 // GET /api/pitches - Browse verified pitches (Funders & Public browse by district only; unverified never visible)
-router.get("/", optionalAuth, async (req: Request, res: Response) => {
+router.get("/", authenticateToken, requirePermission("pitch:browse_approved"), async (req: Request, res: Response) => {
   try {
     const { districtId, sectorId, fundingType, lang = req.user?.preferredLanguage || "en" } = req.query;
 
@@ -86,7 +87,7 @@ router.get("/", optionalAuth, async (req: Request, res: Response) => {
 });
 
 // GET /api/pitches/my - Entrepreneur view own pitches
-router.get("/my", authenticateToken, async (req: Request, res: Response) => {
+router.get("/my", authenticateToken, requirePermission("pitch:manage_own"), async (req: Request, res: Response) => {
   try {
     const pitches = await prisma.pitch.findMany({
       where: { entrepreneurId: req.user!.id },
@@ -119,7 +120,7 @@ router.get("/my", authenticateToken, async (req: Request, res: Response) => {
 router.get(
   "/verifier/queue",
   authenticateToken,
-  requireRoles(Role.Verifier, Role.Admin),
+  requirePermission("pitch:review"),
   async (req: Request, res: Response) => {
     try {
       const pitches = await prisma.pitch.findMany({
@@ -149,7 +150,11 @@ router.get(
 );
 
 // GET /api/pitches/:id - Single pitch detail
-router.get("/:id", optionalAuth, async (req: Request, res: Response) => {
+router.get(
+  "/:id",
+  authenticateToken,
+  requirePermission("pitch:browse_approved", "pitch:manage_own", "pitch:review"),
+  async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const lang = String(req.query.lang || req.user?.preferredLanguage || "en");
@@ -179,17 +184,23 @@ router.get("/:id", optionalAuth, async (req: Request, res: Response) => {
           }
         }
       }
-    });
+      }
+    );
 
     if (!pitch) {
       return res.status(404).json({ error: "Pitch not found" });
     }
 
-    // Security check: Unapproved pitches are only visible to the owner or Verifier/Admin
+    // Security check: pitch details are available to owners or users with the relevant read permission.
     const isOwner = req.user?.id === pitch.entrepreneurId;
-    const isPrivileged = req.user?.roles.some((r) => r === Role.Verifier || r === Role.Admin);
+    const canManageOwn = Boolean(req.user && hasPermission(req.user.roles, "pitch:manage_own"));
+    const canBrowse = Boolean(req.user && hasPermission(req.user.roles, "pitch:browse_approved"));
+    const canReview = Boolean(req.user && hasPermission(req.user.roles, "pitch:review"));
 
-    if (pitch.status !== PitchStatus.APPROVED && !isOwner && !isPrivileged) {
+    if (
+      (pitch.status === PitchStatus.APPROVED && !canBrowse && !(isOwner && canManageOwn)) ||
+      (pitch.status !== PitchStatus.APPROVED && !(isOwner && canManageOwn) && !canReview)
+    ) {
       return res.status(403).json({ error: "This pitch is pending verification and is not yet publicly visible." });
     }
 
@@ -204,8 +215,7 @@ router.get("/:id", optionalAuth, async (req: Request, res: Response) => {
 router.post(
   "/",
   authenticateToken,
-  requireRoles(Role.Entrepreneur, Role.Admin),
-  requireVerified,
+  requirePermission("pitch:create"),
   async (req: Request, res: Response) => {
     try {
       const {
@@ -269,7 +279,7 @@ router.post(
 router.post(
   "/:id/review",
   authenticateToken,
-  requireRoles(Role.Verifier, Role.Admin),
+  requirePermission("pitch:review"),
   async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
@@ -336,7 +346,7 @@ router.post(
 router.post(
   "/:id/interest",
   authenticateToken,
-  requireRoles(Role.Funder, Role.Admin),
+  requirePermission("pitch:express_interest"),
   async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
@@ -388,4 +398,3 @@ router.post(
 );
 
 export default router;
-

@@ -1,14 +1,17 @@
 import { Router, Request, Response } from "express";
 import { PrismaClient } from "@prisma/client";
 import { authenticateToken } from "../middleware/auth.middleware";
+import { requirePermission } from "../middleware/role.middleware";
 import { translateWithCache } from "../services/translation.service";
 import { createNotification } from "../services/notification.service";
 
 const router = Router();
 const prisma = new PrismaClient();
 
+router.use(authenticateToken, requirePermission("chat:use"));
+
 // GET /api/messages/conversations - List user conversations
-router.get("/conversations", authenticateToken, async (req: Request, res: Response) => {
+router.get("/conversations", async (req: Request, res: Response) => {
   try {
     const userId = req.user!.id;
 
@@ -83,7 +86,7 @@ router.get("/conversations", authenticateToken, async (req: Request, res: Respon
 });
 
 // POST /api/messages/conversations - Start or find conversation
-router.post("/conversations", authenticateToken, async (req: Request, res: Response) => {
+router.post("/conversations", async (req: Request, res: Response) => {
   try {
     const { recipientId, type = "DIRECT", referenceId } = req.body;
 
@@ -125,7 +128,7 @@ router.post("/conversations", authenticateToken, async (req: Request, res: Respo
 });
 
 // GET /api/messages/conversations/:id - Messages with automatic reader translation
-router.get("/conversations/:id", authenticateToken, async (req: Request, res: Response) => {
+router.get("/conversations/:id", async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const userId = req.user!.id;
@@ -204,7 +207,7 @@ router.get("/conversations/:id", authenticateToken, async (req: Request, res: Re
 });
 
 // POST /api/messages/conversations/:id - Send message
-router.post("/conversations/:id", authenticateToken, async (req: Request, res: Response) => {
+router.post("/conversations/:id", async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { content, sourceLanguage = req.user!.preferredLanguage || "en" } = req.body;
@@ -255,4 +258,3 @@ router.post("/conversations/:id", authenticateToken, async (req: Request, res: R
 });
 
 export default router;
-

@@ -2,17 +2,16 @@ import { Router, Request, Response } from "express";
 import bcrypt from "bcryptjs";
 import { PrismaClient, Role } from "@prisma/client";
 import { authenticateToken } from "../middleware/auth.middleware";
-import { requireRoles } from "../middleware/role.middleware";
+import { requirePermission } from "../middleware/role.middleware";
 import { logAuditAction } from "../services/audit.service";
 
 const router = Router();
 const prisma = new PrismaClient();
 
-// Restrict all routes in this file to Admin role
-router.use(authenticateToken, requireRoles(Role.Admin));
+router.use(authenticateToken);
 
 // GET /api/admin/users - List users
-router.get("/users", async (req: Request, res: Response) => {
+router.get("/users", requirePermission("user:manage"), async (req: Request, res: Response) => {
   try {
     const { search, role, status } = req.query;
 
@@ -64,7 +63,7 @@ router.get("/users", async (req: Request, res: Response) => {
 });
 
 // POST /api/admin/users - Admin creates user (e.g. Verifier or Admin accounts)
-router.post("/users", async (req: Request, res: Response) => {
+router.post("/users", requirePermission("user:manage"), async (req: Request, res: Response) => {
   try {
     const { email, password, fullName, dateOfBirth, phone, districtId, roles } = req.body;
 
@@ -123,7 +122,7 @@ router.post("/users", async (req: Request, res: Response) => {
 });
 
 // PATCH /api/admin/users/:id/status - Soft delete / deactivate user
-router.patch("/users/:id/status", async (req: Request, res: Response) => {
+router.patch("/users/:id/status", requirePermission("user:manage"), async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { isActive } = req.body;
@@ -159,7 +158,7 @@ router.patch("/users/:id/status", async (req: Request, res: Response) => {
 });
 
 // POST /api/admin/users/:id/roles - Assign or modify roles
-router.post("/users/:id/roles", async (req: Request, res: Response) => {
+router.post("/users/:id/roles", requirePermission("user:manage"), async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { roles } = req.body;
@@ -188,7 +187,7 @@ router.post("/users/:id/roles", async (req: Request, res: Response) => {
 });
 
 // GET /api/admin/audit-logs
-router.get("/audit-logs", async (req: Request, res: Response) => {
+router.get("/audit-logs", requirePermission("audit:view"), async (req: Request, res: Response) => {
   try {
     const logs = await prisma.auditLog.findMany({
       include: {
@@ -207,7 +206,7 @@ router.get("/audit-logs", async (req: Request, res: Response) => {
 });
 
 // GET /api/admin/settings
-router.get("/settings", async (_req: Request, res: Response) => {
+router.get("/settings", requirePermission("settings:manage"), async (_req: Request, res: Response) => {
   try {
     const settings = await prisma.systemSetting.findMany({
       orderBy: { key: "asc" }
@@ -219,7 +218,7 @@ router.get("/settings", async (_req: Request, res: Response) => {
 });
 
 // PUT /api/admin/settings - Update system settings
-router.put("/settings", async (req: Request, res: Response) => {
+router.put("/settings", requirePermission("settings:manage"), async (req: Request, res: Response) => {
   try {
     const { key, value } = req.body;
     if (!key || value === undefined) {
@@ -247,4 +246,3 @@ router.put("/settings", async (req: Request, res: Response) => {
 });
 
 export default router;
-

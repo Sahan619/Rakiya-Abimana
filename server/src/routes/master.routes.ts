@@ -1,7 +1,7 @@
 import { Router, Request, Response } from "express";
-import { PrismaClient, Role } from "@prisma/client";
+import { PrismaClient } from "@prisma/client";
 import { authenticateToken } from "../middleware/auth.middleware";
-import { requireRoles } from "../middleware/role.middleware";
+import { requirePermission } from "../middleware/role.middleware";
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -47,7 +47,7 @@ router.get("/sectors", async (_req: Request, res: Response) => {
 router.post(
   "/categories",
   authenticateToken,
-  requireRoles(Role.Admin),
+  requirePermission("masterdata:manage"),
   async (req: Request, res: Response) => {
     try {
       const { id, nameEn, nameSi, nameTa } = req.body;
@@ -69,7 +69,7 @@ router.post(
 router.post(
   "/sectors",
   authenticateToken,
-  requireRoles(Role.Admin),
+  requirePermission("masterdata:manage"),
   async (req: Request, res: Response) => {
     try {
       const { id, nameEn, nameSi, nameTa } = req.body;
@@ -88,4 +88,3 @@ router.post(
 );
 
 export default router;
-

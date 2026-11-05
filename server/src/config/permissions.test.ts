@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { Role } from "@prisma/client";
+import { NextFunction, Request, Response } from "express";
 import {
   CHAT_PAIRS,
   PERMISSION_NAMES,
@@ -10,6 +11,8 @@ import {
   isRoleEnabled,
   permissionsForRoles
 } from "./permissions";
+import { AuthenticatedUser } from "../middleware/auth.middleware";
+import { requirePermission } from "../middleware/role.middleware";
 
 const expectedPermissions: Record<Role, Permission[]> = {
   [Role.Admin]: [
@@ -105,6 +108,79 @@ test("multiple roles contribute a union and disabled roles contribute nothing", 
     permissionsForRoles([Role.JobSeeker, Role.TrainingProvider]).sort(),
     permissionsForRoles([Role.JobSeeker]).sort()
   );
+});
+
+function makeRequest(roles: Role[], isVerified: boolean): Request {
+  const user: AuthenticatedUser = {
+    id: "test-user",
+    email: "test@example.com",
+    fullName: "Test User",
+    roles,
+    isVerified,
+    preferredLanguage: "en"
+  };
+  return { user } as Request;
+}
+
+function makeResponse() {
+  let statusCode = 200;
+  let responseBody: unknown;
+  const response = {
+    status(code: number) {
+      statusCode = code;
+      return this;
+    },
+    json(body: unknown) {
+      responseBody = body;
+      return this;
+    }
+  } as Response;
+  return {
+    response,
+    statusCode: () => statusCode,
+    responseBody: () => responseBody
+  };
+}
+
+test("requirePermission returns 401 when the request is unauthenticated", () => {
+  const { response, statusCode, responseBody } = makeResponse();
+  let nextCalled = false;
+  const next: NextFunction = () => { nextCalled = true; };
+  requirePermission("job:create")({} as Request, response, next);
+  assert.equal(statusCode(), 401);
+  assert.deepEqual(responseBody(), { error: "Authentication required" });
+  assert.equal(nextCalled, false);
+});
+
+test("requirePermission returns 403 when the user lacks permission", () => {
+  const { response, statusCode, responseBody } = makeResponse();
+  let nextCalled = false;
+  const next: NextFunction = () => { nextCalled = true; };
+  requirePermission("job:create")(makeRequest([Role.JobSeeker], true), response, next);
+  assert.equal(statusCode(), 403);
+  assert.deepEqual(responseBody(), { error: "Access denied. Insufficient permissions." });
+  assert.equal(nextCalled, false);
+});
+
+test("requirePermission calls next when the user has permission", () => {
+  const { response, statusCode } = makeResponse();
+  let nextCalled = false;
+  const next: NextFunction = () => { nextCalled = true; };
+  requirePermission("job:create")(makeRequest([Role.Employer], true), response, next);
+  assert.equal(nextCalled, true);
+  assert.equal(statusCode(), 200);
+});
+
+test("requirePermission rejects unverified users for verified permissions", () => {
+  const { response, statusCode, responseBody } = makeResponse();
+  let nextCalled = false;
+  const next: NextFunction = () => { nextCalled = true; };
+  requirePermission("job:create")(makeRequest([Role.Employer], false), response, next);
+  assert.equal(statusCode(), 403);
+  assert.deepEqual(responseBody(), {
+    error: "Verification required. Please complete identity and business verification to perform this action."
+  });
+  assert.equal(nextCalled, false);
 });
 
 test("chat pairs permit only the defined role pairings and context types", () => {
