@@ -1,14 +1,45 @@
 import { Router, Request, Response } from "express";
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, Role } from "@prisma/client";
 import { authenticateToken } from "../middleware/auth.middleware";
 import { requirePermission } from "../middleware/role.middleware";
 import { translateWithCache } from "../services/translation.service";
 import { createNotification } from "../services/notification.service";
+import { chatPairAllows } from "../config/permissions";
 
 const router = Router();
 const prisma = new PrismaClient();
 
 router.use(authenticateToken, requirePermission("chat:use"));
+
+async function isConversationAllowed(
+  participant1Id: string,
+  participant1Roles: readonly Role[],
+  participant2Id: string,
+  participant2Roles: readonly Role[],
+  type: string,
+  referenceId: string | null
+): Promise<boolean> {
+  if (!chatPairAllows(participant1Roles, participant2Roles, type) || !referenceId) {
+    return false;
+  }
+
+  let contextOwnerId: string | null = null;
+  if (type === "JOB_APPLICATION") {
+    const job = await prisma.job.findUnique({
+      where: { id: referenceId },
+      select: { employerId: true }
+    });
+    contextOwnerId = job?.employerId ?? null;
+  } else if (type === "PITCH_INTEREST") {
+    const pitch = await prisma.pitch.findUnique({
+      where: { id: referenceId },
+      select: { entrepreneurId: true }
+    });
+    contextOwnerId = pitch?.entrepreneurId ?? null;
+  }
+
+  return contextOwnerId === participant1Id || contextOwnerId === participant2Id;
+}
 
 // GET /api/messages/conversations - List user conversations
 router.get("/conversations", async (req: Request, res: Response) => {
@@ -37,11 +68,26 @@ router.get("/conversations", async (req: Request, res: Response) => {
           select: {
             id: true,
             fullName: true,
+            isActive: true,
             isVerified: true,
             roles: { select: { role: true } },
             employerProfile: { select: { companyName: true } }
           }
         });
+
+        if (
+          !otherUser?.isActive ||
+          !(await isConversationAllowed(
+            userId,
+            req.user!.roles,
+            otherUserId,
+            otherUser.roles.map((role) => role.role),
+            conv.type,
+            conv.referenceId
+          ))
+        ) {
+          return { allowed: false as const, conversation: null };
+        }
 
         const lastMsg = conv.messages[0] || null;
         let translatedLastMsg = lastMsg?.content;
@@ -57,28 +103,33 @@ router.get("/conversations", async (req: Request, res: Response) => {
         }
 
         return {
-          id: conv.id,
-          type: conv.type,
-          referenceId: conv.referenceId,
-          otherUser: {
-            id: otherUser?.id,
-            fullName: otherUser?.fullName || "User",
-            companyName: otherUser?.employerProfile?.companyName,
-            isVerified: otherUser?.isVerified,
-            roles: otherUser?.roles.map((r) => r.role)
+          allowed: true as const,
+          conversation: {
+            id: conv.id,
+            type: conv.type,
+            referenceId: conv.referenceId,
+            otherUser: {
+              id: otherUser.id,
+              fullName: otherUser.fullName || "User",
+              companyName: otherUser.employerProfile?.companyName,
+              isVerified: otherUser.isVerified,
+              roles: otherUser.roles.map((r) => r.role)
+            },
+            lastMessage: lastMsg
+              ? {
+                  ...lastMsg,
+                  translatedContent: translatedLastMsg
+                }
+              : null,
+            updatedAt: conv.updatedAt
           },
-          lastMessage: lastMsg
-            ? {
-                ...lastMsg,
-                translatedContent: translatedLastMsg
-              }
-            : null,
-          updatedAt: conv.updatedAt
         };
       })
     );
 
-    return res.json({ conversations: populated });
+    return res.json({
+      conversations: populated.flatMap((entry) => entry.allowed ? [entry.conversation] : [])
+    });
   } catch (err) {
     console.error("Fetch conversations error:", err);
     return res.status(500).json({ error: "Failed to fetch conversations" });
@@ -88,14 +139,43 @@ router.get("/conversations", async (req: Request, res: Response) => {
 // POST /api/messages/conversations - Start or find conversation
 router.post("/conversations", async (req: Request, res: Response) => {
   try {
-    const { recipientId, type = "DIRECT", referenceId } = req.body;
+    const { recipientId, type, referenceId } = req.body;
 
-    if (!recipientId) {
+    if (typeof recipientId !== "string" || !recipientId) {
       return res.status(400).json({ error: "Recipient ID is required" });
     }
 
     if (recipientId === req.user!.id) {
       return res.status(400).json({ error: "You cannot start a conversation with yourself" });
+    }
+
+    if (typeof type !== "string" || typeof referenceId !== "string" || !referenceId) {
+      return res.status(400).json({ error: "A conversation type and context are required" });
+    }
+
+    const recipient = await prisma.user.findUnique({
+      where: { id: recipientId },
+      select: {
+        isActive: true,
+        roles: { select: { role: true } }
+      }
+    });
+
+    if (!recipient?.isActive) {
+      return res.status(404).json({ error: "Recipient not found" });
+    }
+
+    if (
+      !(await isConversationAllowed(
+        req.user!.id,
+        req.user!.roles,
+        recipientId,
+        recipient.roles.map((role) => role.role),
+        type,
+        referenceId
+      ))
+    ) {
+      return res.status(403).json({ error: "Conversation not allowed for these roles and context" });
     }
 
     // Check if conversation already exists between these 2 users for this context
@@ -157,10 +237,26 @@ router.get("/conversations/:id", async (req: Request, res: Response) => {
       select: {
         id: true,
         fullName: true,
+        isActive: true,
         isVerified: true,
+        roles: { select: { role: true } },
         employerProfile: { select: { companyName: true } }
       }
     });
+
+    if (
+      !otherUser?.isActive ||
+      !(await isConversationAllowed(
+        userId,
+        req.user!.roles,
+        otherUserId,
+        otherUser.roles.map((role) => role.role),
+        conv.type,
+        conv.referenceId
+      ))
+    ) {
+      return res.status(403).json({ error: "Access denied to this conversation" });
+    }
 
     // Translate each message into reader's language
     const enrichedMessages = await Promise.all(
@@ -226,6 +322,27 @@ router.post("/conversations/:id", async (req: Request, res: Response) => {
     }
 
     const receiverId = conv.participant1Id === req.user!.id ? conv.participant2Id : conv.participant1Id;
+    const receiver = await prisma.user.findUnique({
+      where: { id: receiverId },
+      select: {
+        isActive: true,
+        roles: { select: { role: true } }
+      }
+    });
+
+    if (
+      !receiver?.isActive ||
+      !(await isConversationAllowed(
+        req.user!.id,
+        req.user!.roles,
+        receiverId,
+        receiver.roles.map((role) => role.role),
+        conv.type,
+        conv.referenceId
+      ))
+    ) {
+      return res.status(403).json({ error: "Messaging is not allowed for this conversation" });
+    }
 
     const message = await prisma.message.create({
       data: {

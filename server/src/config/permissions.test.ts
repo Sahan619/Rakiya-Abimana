@@ -3,11 +3,11 @@ import { test } from "node:test";
 import { Role } from "@prisma/client";
 import { NextFunction, Request, Response } from "express";
 import {
-  CHAT_PAIRS,
   GUEST_PERMISSIONS,
   PERMISSION_NAMES,
   Permission,
   ROLE_DEFINITIONS,
+  chatPairAllows,
   hasPermission,
   isRoleEnabled,
   permissionsForRoles
@@ -189,16 +189,13 @@ test("requirePermission rejects unverified users for verified permissions", () =
 });
 
 test("chat pairs permit only the defined role pairings and context types", () => {
-  const allowed = (first: Role, second: Role, type: "JOB_APPLICATION" | "PITCH_INTEREST") =>
-    CHAT_PAIRS.some((pair) =>
-      pair.type === type &&
-      ((pair.roles[0] === first && pair.roles[1] === second) ||
-        (pair.roles[0] === second && pair.roles[1] === first))
-    );
-
-  assert.equal(allowed(Role.JobSeeker, Role.Employer, "JOB_APPLICATION"), true);
-  assert.equal(allowed(Role.Entrepreneur, Role.Funder, "PITCH_INTEREST"), true);
-  assert.equal(allowed(Role.JobSeeker, Role.Funder, "JOB_APPLICATION"), false);
-  assert.equal(allowed(Role.Entrepreneur, Role.Employer, "PITCH_INTEREST"), false);
-  assert.equal(allowed(Role.Employer, Role.JobSeeker, "PITCH_INTEREST"), false);
+  assert.equal(chatPairAllows([Role.JobSeeker], [Role.Employer], "JOB_APPLICATION"), true);
+  assert.equal(chatPairAllows([Role.Entrepreneur], [Role.Funder], "PITCH_INTEREST"), true);
+  assert.equal(chatPairAllows([Role.Employer], [Role.JobSeeker], "JOB_APPLICATION"), true);
+  assert.equal(chatPairAllows([Role.Funder], [Role.Entrepreneur], "PITCH_INTEREST"), true);
+  assert.equal(chatPairAllows([Role.JobSeeker], [Role.Funder], "JOB_APPLICATION"), false);
+  assert.equal(chatPairAllows([Role.Entrepreneur], [Role.Employer], "PITCH_INTEREST"), false);
+  assert.equal(chatPairAllows([Role.Employer], [Role.JobSeeker], "PITCH_INTEREST"), false);
+  assert.equal(chatPairAllows([Role.JobSeeker, Role.TrainingProvider], [Role.Employer], "JOB_APPLICATION"), true);
+  assert.equal(chatPairAllows([Role.TrainingProvider], [Role.Employer], "JOB_APPLICATION"), false);
 });

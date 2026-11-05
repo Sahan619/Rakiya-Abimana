@@ -169,6 +169,20 @@ export const CHAT_PAIRS: ReadonlyArray<{
   { type: "PITCH_INTEREST", roles: [Role.Entrepreneur, Role.Funder] }
 ];
 
+export function chatPairAllows(
+  firstRoles: readonly Role[],
+  secondRoles: readonly Role[],
+  type: string
+): boolean {
+  return CHAT_PAIRS.some(({ roles, type: pairType }) =>
+    pairType === type &&
+    ((isRoleEnabled(roles[0]) && firstRoles.includes(roles[0]) &&
+      isRoleEnabled(roles[1]) && secondRoles.includes(roles[1])) ||
+      (isRoleEnabled(roles[1]) && firstRoles.includes(roles[1]) &&
+        isRoleEnabled(roles[0]) && secondRoles.includes(roles[0])))
+  );
+}
+
 interface PermissionLookup {
   permissionsForRoles(roles: readonly Role[]): Set<Permission>;
   isRoleEnabled(role: Role): boolean;
