@@ -1,5 +1,5 @@
 import { Router, Request, Response } from "express";
-import { PrismaClient, JobStatus, Role, ApplicationStatus } from "@prisma/client";
+import { PrismaClient, JobStatus, ApplicationStatus } from "@prisma/client";
 import { authenticateToken, optionalAuth } from "../middleware/auth.middleware";
 import { requirePermission } from "../middleware/role.middleware";
 import { hasPermission } from "../config/permissions";
@@ -46,6 +46,10 @@ async function enrichJobWithTranslation(prismaClient: PrismaClient, job: any, ta
 // GET /api/jobs - Browse jobs with search & filters
 router.get("/", optionalAuth, async (req: Request, res: Response) => {
   try {
+    if (req.user && !hasPermission(req.user.roles, "job:list_public")) {
+      return res.status(403).json({ error: "Access denied. Insufficient permissions." });
+    }
+
     const {
       districtId,
       category,
@@ -387,8 +391,7 @@ router.put(
       return res.status(404).json({ error: "Job not found" });
     }
 
-    const isAdmin = req.user!.roles.includes(Role.Admin);
-    if (existing.employerId !== req.user!.id && !isAdmin) {
+    if (existing.employerId !== req.user!.id) {
       return res.status(403).json({ error: "You can only edit your own job postings" });
     }
 
@@ -514,8 +517,7 @@ router.patch(
       return res.status(404).json({ error: "Job not found" });
     }
 
-    const isAdmin = req.user!.roles.includes(Role.Admin);
-    if (job.employerId !== req.user!.id && !isAdmin) {
+    if (job.employerId !== req.user!.id) {
       return res.status(403).json({ error: "You can only change status of your own jobs" });
     }
 
@@ -681,8 +683,7 @@ router.get(
       return res.status(404).json({ error: "Job not found" });
     }
 
-    const isAdmin = req.user!.roles.includes(Role.Admin);
-    if (job.employerId !== req.user!.id && !isAdmin) {
+    if (job.employerId !== req.user!.id) {
       return res.status(403).json({ error: "Unauthorized access to job applicants" });
     }
 
@@ -747,8 +748,7 @@ router.patch(
       return res.status(404).json({ error: "Application not found" });
     }
 
-    const isAdmin = req.user!.roles.includes(Role.Admin);
-    if (application.job.employerId !== req.user!.id && !isAdmin) {
+    if (application.job.employerId !== req.user!.id) {
       return res.status(403).json({ error: "Unauthorized to update application status" });
     }
 

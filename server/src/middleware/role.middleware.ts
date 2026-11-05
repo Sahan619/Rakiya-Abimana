@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from "express";
-import { Permission, PERMISSIONS, hasPermission } from "../config/permissions";
+import { Permission, hasPermission, permissionRequiresVerification } from "../config/permissions";
 
 export function requirePermission(...permissions: Permission[]) {
   return (req: Request, res: Response, next: NextFunction) => {
@@ -15,7 +15,7 @@ export function requirePermission(...permissions: Permission[]) {
     }
 
     const permitted = grantedPermissions.some((permission) =>
-      !PERMISSIONS[permission].requiresVerified || req.user!.isVerified
+      !permissionRequiresVerification(req.user!.roles, permission) || req.user!.isVerified
     );
     if (!permitted) {
       return res.status(403).json({

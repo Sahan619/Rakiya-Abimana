@@ -204,6 +204,15 @@ test("funder directory access requires a verified Entrepreneur", () => {
   const { response, statusCode } = makeResponse();
   requirePermission("funder:browse")(makeRequest([Role.Entrepreneur], false), response, () => {});
   assert.equal(statusCode(), 403);
+
+  const adminResult = makeResponse();
+  let adminNextCalled = false;
+  requirePermission("funder:browse")(
+    makeRequest([Role.Admin], false),
+    adminResult.response,
+    () => { adminNextCalled = true; }
+  );
+  assert.equal(adminNextCalled, true);
 });
 
 test("chat pairs permit only the defined role pairings and context types", () => {

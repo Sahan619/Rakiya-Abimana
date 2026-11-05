@@ -229,6 +229,17 @@ export function hasPermission(roles: readonly Role[], permission: Permission): b
   return configPermissionLookup.permissionsForRoles(roles).has(permission);
 }
 
+export function permissionRequiresVerification(
+  roles: readonly Role[],
+  permission: Permission
+): boolean {
+  const metadata = PERMISSIONS[permission];
+  if (!metadata.requiresVerified) {
+    return false;
+  }
+  return !metadata.verificationExemptRoles?.some((role) => roles.includes(role));
+}
+
 export function isRoleEnabled(role: Role): boolean {
   return configPermissionLookup.isRoleEnabled(role);
 }
