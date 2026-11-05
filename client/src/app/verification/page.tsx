@@ -24,11 +24,18 @@ export default function VerificationPage() {
   const [nicNumber, setNicNumber] = useState("");
   const [gramaDoc, setGramaDoc] = useState<File | null>(null);
   const [businessDoc, setBusinessDoc] = useState<File | null>(null);
+  const [institutionDoc, setInstitutionDoc] = useState<File | null>(null);
   const [statusData, setStatusData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const roles = user?.roles || [];
+  const isAdminOrVerifier = roles.includes("Admin") || roles.includes("Verifier");
+  const isJobSeeker = roles.includes("JobSeeker");
+  const requiresNic = roles.includes("Employer") || roles.includes("Entrepreneur") || (roles.includes("Funder") && user?.funderProfile?.accountType === "INDIVIDUAL");
+  const canSubmitDocuments = roles.includes("Employer") || roles.includes("Entrepreneur") || roles.includes("Funder") || roles.includes("TrainingProvider");
 
   useEffect(() => {
     fetchStatus();
@@ -54,8 +61,10 @@ export default function VerificationPage() {
     setMessage(null);
 
     if (!nicNumber.trim()) {
-      setError("Please enter your Sri Lankan NIC number.");
-      return;
+      if (requiresNic) {
+        setError("Please enter your Sri Lankan NIC number for this role.");
+        return;
+      }
     }
 
     setSubmitting(true);
@@ -64,6 +73,7 @@ export default function VerificationPage() {
       formData.append("nicNumber", nicNumber.trim());
       if (gramaDoc) formData.append("gramaNiladhariDoc", gramaDoc);
       if (businessDoc) formData.append("businessRegDoc", businessDoc);
+      if (institutionDoc) formData.append("institutionDoc", institutionDoc);
 
       const res = await api.post("/verification/submit", formData);
       setMessage(res.message || "Verification submitted successfully.");
@@ -86,6 +96,10 @@ export default function VerificationPage() {
     );
   }
 
+  if (isAdminOrVerifier) {
+    return <div className="mx-auto max-w-xl rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm"><ShieldCheck className="mx-auto text-primary-700" size={40} /><h2 className="mt-4 text-lg font-bold text-slate-900">No public verification form</h2><p className="mt-2 text-sm text-slate-600">Administrative and verifier accounts are provisioned and managed through authorized workflows.</p></div>;
+  }
+
   return (
     <div className="max-w-3xl mx-auto space-y-6">
       {/* Header */}
@@ -95,11 +109,11 @@ export default function VerificationPage() {
             <div className="flex items-center space-x-2">
               <ShieldCheck className="text-primary-700" size={26} />
               <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
-                {t("verification.title", "Identity & Business Verification")}
+                {isJobSeeker ? "Optional Personal Verification" : canSubmitDocuments ? "Role-based Verification" : t("verification.title", "Identity & Business Verification")}
               </h1>
             </div>
             <p className="text-xs sm:text-sm text-gray-600 mt-1">
-              {t("verification.subtitle", "Submit your Sri Lankan NIC and documents to earn the Verified badge.")}
+              {isJobSeeker ? "You can request optional personal verification. An account does not require a NIC." : "Submit only the identity or organization documents relevant to your role for manual review."}
             </p>
           </div>
           <div>
@@ -204,11 +218,11 @@ export default function VerificationPage() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
-                {t("verification.nicNumber", "Sri Lankan NIC Number")} *
+            {t("verification.nicNumber", "Sri Lankan NIC Number")} {requiresNic ? "*" : "(optional)"}
               </label>
               <input
                 type="text"
-                required
+                required={requiresNic}
                 value={nicNumber}
                 onChange={(e) => setNicNumber(e.target.value)}
                 placeholder="e.g. 920841234V or 199208401234"
@@ -219,6 +233,7 @@ export default function VerificationPage() {
               </p>
             </div>
 
+            {!isJobSeeker && (
             <div>
               <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
                 {t("verification.gramaNiladhari", "Grama Niladhari Certificate (PDF / Image)")}
@@ -230,7 +245,9 @@ export default function VerificationPage() {
                 className="w-full text-xs text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100"
               />
             </div>
+            )}
 
+            {(roles.includes("Employer") || roles.includes("Entrepreneur") || (roles.includes("Funder") && user.funderProfile?.accountType === "ORGANIZATION")) && (
             <div>
               <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
                 {t("verification.businessReg", "Business Registration Proof (For Employers & Micro-Businesses)")}
@@ -242,6 +259,14 @@ export default function VerificationPage() {
                 className="w-full text-xs text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100"
               />
             </div>
+            )}
+
+            {roles.includes("TrainingProvider") && (
+            <div>
+              <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Institution registration or accreditation document</label>
+              <input type="file" accept=".pdf,.png,.jpg,.jpeg" onChange={(e) => setInstitutionDoc(e.target.files?.[0] || null)} className="w-full text-xs text-gray-500 file:mr-4 file:rounded-md file:border-0 file:bg-primary-50 file:px-4 file:py-2 file:text-xs file:font-semibold file:text-primary-700" />
+            </div>
+            )}
 
             <button
               type="submit"

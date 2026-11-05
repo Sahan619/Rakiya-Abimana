@@ -18,7 +18,8 @@ import {
   ArrowRight,
   Sparkles,
   Phone,
-  Globe
+  Globe,
+  GraduationCap
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { useLanguage } from "../../context/LanguageContext";
@@ -59,12 +60,39 @@ export default function ProfilePage() {
   const [jsSkills, setJsSkills] = useState("");
   const [jsExp, setJsExp] = useState("0");
   const [jsBio, setJsBio] = useState("");
+  const [jsEducation, setJsEducation] = useState("");
+  const [jsPreferredCategories, setJsPreferredCategories] = useState("");
+  const [jsPreferredLocations, setJsPreferredLocations] = useState("");
+  const [jsExpectedSalary, setJsExpectedSalary] = useState("");
 
   // Employer profile fields (for employers only)
   const [empCompanyName, setEmpCompanyName] = useState("");
   const [empBrNumber, setEmpBrNumber] = useState("");
   const [empDesc, setEmpDesc] = useState("");
+  const [empIndustry, setEmpIndustry] = useState("");
+  const [empAddress, setEmpAddress] = useState("");
+  const [empContactPhone, setEmpContactPhone] = useState("");
   const [empWebsite, setEmpWebsite] = useState("");
+
+  const [entrepreneurBusinessName, setEntrepreneurBusinessName] = useState("");
+  const [entrepreneurCategory, setEntrepreneurCategory] = useState("");
+  const [entrepreneurIdea, setEntrepreneurIdea] = useState("");
+  const [entrepreneurStage, setEntrepreneurStage] = useState("IDEA");
+  const [entrepreneurFunding, setEntrepreneurFunding] = useState("");
+  const [entrepreneurExperience, setEntrepreneurExperience] = useState("");
+
+  const [funderAccountType, setFunderAccountType] = useState("ORGANIZATION");
+  const [funderOrganizationName, setFunderOrganizationName] = useState("");
+  const [funderOrganizationType, setFunderOrganizationType] = useState("");
+  const [funderInterests, setFunderInterests] = useState("");
+
+  const [trainingInstitution, setTrainingInstitution] = useState("");
+  const [trainingCategories, setTrainingCategories] = useState("");
+  const [trainingCourses, setTrainingCourses] = useState("");
+  const [trainingAccreditation, setTrainingAccreditation] = useState("");
+  const [trainingLocation, setTrainingLocation] = useState("");
+  const [trainingPhone, setTrainingPhone] = useState("");
+  const [trainingWebsite, setTrainingWebsite] = useState("");
 
   // Funder profile fields (for funders only)
   const [funderType, setFunderType] = useState("CSR business");
@@ -103,19 +131,48 @@ export default function ProfilePage() {
         setJsSkills(user.jobSeekerProfile.skills || "");
         setJsExp(String(user.jobSeekerProfile.experienceYears ?? 0));
         setJsBio(user.jobSeekerProfile.bio || "");
+        setJsEducation(user.jobSeekerProfile.educationQualifications || "");
+        setJsPreferredCategories(user.jobSeekerProfile.preferredCategories || "");
+        setJsPreferredLocations(user.jobSeekerProfile.preferredLocations || "");
+        setJsExpectedSalary(user.jobSeekerProfile.expectedSalary ? String(user.jobSeekerProfile.expectedSalary) : "");
       }
 
       if (user.employerProfile) {
         setEmpCompanyName(user.employerProfile.companyName || "");
         setEmpBrNumber(user.employerProfile.businessRegNumber || "");
         setEmpDesc(user.employerProfile.description || "");
+        setEmpIndustry(user.employerProfile.industry || "");
+        setEmpAddress(user.employerProfile.businessAddress || "");
+        setEmpContactPhone(user.employerProfile.contactPhone || "");
         setEmpWebsite(user.employerProfile.website || "");
+      }
+
+      if (user.entrepreneurProfile) {
+        setEntrepreneurBusinessName(user.entrepreneurProfile.businessName || "");
+        setEntrepreneurCategory(user.entrepreneurProfile.businessCategory || "");
+        setEntrepreneurIdea(user.entrepreneurProfile.businessIdea || "");
+        setEntrepreneurStage(user.entrepreneurProfile.businessStage || "IDEA");
+        setEntrepreneurFunding(user.entrepreneurProfile.fundingRequirement ? String(user.entrepreneurProfile.fundingRequirement) : "");
+        setEntrepreneurExperience(user.entrepreneurProfile.skillsExperience || "");
       }
 
       if (user.funderProfile) {
         setFunderType(user.funderProfile.funderType || "CSR business");
+        setFunderAccountType(user.funderProfile.accountType || "ORGANIZATION");
+        setFunderOrganizationName(user.funderProfile.organizationName || "");
+        setFunderOrganizationType(user.funderProfile.organizationType || "");
+        setFunderInterests(user.funderProfile.fundingInterests || "");
         setFunderDistricts(user.funderProfile.focusDistricts || "");
         setFunderSectors(user.funderProfile.focusSectors || "");
+      }
+      if (user.trainingProviderProfile) {
+        setTrainingInstitution(user.trainingProviderProfile.institutionName || "");
+        setTrainingCategories(user.trainingProviderProfile.trainingCategories || "");
+        setTrainingCourses(user.trainingProviderProfile.coursesOffered || "");
+        setTrainingAccreditation(user.trainingProviderProfile.accreditation || "");
+        setTrainingLocation(user.trainingProviderProfile.trainingLocation || "");
+        setTrainingPhone(user.trainingProviderProfile.contactPhone || "");
+        setTrainingWebsite(user.trainingProviderProfile.website || "");
       }
     }
   }, [user]);
@@ -147,7 +204,11 @@ export default function ProfilePage() {
           trade: jsTrade,
           skills: jsSkills,
           experienceYears: parseInt(jsExp, 10) || 0,
-          bio: jsBio
+          bio: jsBio,
+          educationQualifications: jsEducation,
+          preferredCategories: jsPreferredCategories,
+          preferredLocations: jsPreferredLocations,
+          expectedSalary: jsExpectedSalary ? parseFloat(jsExpectedSalary) : null
         });
       } else {
         // Non-job seekers update respective authorized role profiles
@@ -156,6 +217,9 @@ export default function ProfilePage() {
             companyName: empCompanyName,
             businessRegNumber: empBrNumber,
             description: empDesc,
+            industry: empIndustry,
+            businessAddress: empAddress,
+            contactPhone: empContactPhone,
             website: empWebsite
           });
         }
@@ -163,8 +227,35 @@ export default function ProfilePage() {
         if (isFunder) {
           await api.post("/users/funder-profile", {
             funderType,
+            accountType: funderAccountType,
+            organizationName: funderOrganizationName,
+            organizationType: funderOrganizationType,
+            fundingInterests: funderInterests,
             focusDistricts: funderDistricts,
             focusSectors: funderSectors
+          });
+        }
+
+        if (isEntrepreneur) {
+          await api.post("/users/entrepreneur-profile", {
+            businessName: entrepreneurBusinessName,
+            businessCategory: entrepreneurCategory,
+            businessIdea: entrepreneurIdea,
+            businessStage: entrepreneurStage,
+            fundingRequirement: entrepreneurFunding ? parseFloat(entrepreneurFunding) : null,
+            skillsExperience: entrepreneurExperience
+          });
+        }
+
+        if (user?.roles.includes("TrainingProvider")) {
+          await api.post("/users/training-provider-profile", {
+            institutionName: trainingInstitution || user?.fullName || "Training Provider",
+            trainingCategories,
+            coursesOffered: trainingCourses,
+            accreditation: trainingAccreditation,
+            trainingLocation,
+            contactPhone: trainingPhone,
+            website: trainingWebsite
           });
         }
       }
@@ -503,6 +594,23 @@ export default function ProfilePage() {
                   className="w-full rounded-xl border border-slate-200 bg-white p-3 text-sm text-slate-900 outline-none transition focus:border-primary-500 focus:ring-4 focus:ring-primary-100"
                 />
               </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Education / Qualifications</label>
+                <input type="text" value={jsEducation} onChange={(e) => setJsEducation(e.target.value)} className="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm text-slate-900 outline-none transition focus:border-primary-500 focus:ring-4 focus:ring-primary-100" />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Expected Salary (LKR)</label>
+                <input type="number" min="0" value={jsExpectedSalary} onChange={(e) => setJsExpectedSalary(e.target.value)} className="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm text-slate-900 outline-none transition focus:border-primary-500 focus:ring-4 focus:ring-primary-100" />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Preferred Job Categories</label>
+                <input type="text" value={jsPreferredCategories} onChange={(e) => setJsPreferredCategories(e.target.value)} className="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm text-slate-900 outline-none transition focus:border-primary-500 focus:ring-4 focus:ring-primary-100" />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Preferred Working Locations</label>
+                <input type="text" value={jsPreferredLocations} onChange={(e) => setJsPreferredLocations(e.target.value)} className="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm text-slate-900 outline-none transition focus:border-primary-500 focus:ring-4 focus:ring-primary-100" />
+              </div>
             </div>
           </section>
         )}
@@ -563,6 +671,19 @@ export default function ProfilePage() {
                 />
               </div>
 
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Industry / Business Category</label>
+                <input type="text" value={empIndustry} onChange={(e) => setEmpIndustry(e.target.value)} className="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm text-slate-900 outline-none transition focus:border-primary-500 focus:ring-4 focus:ring-primary-100" />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Contact Phone</label>
+                <input type="text" value={empContactPhone} onChange={(e) => setEmpContactPhone(e.target.value)} className="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm text-slate-900 outline-none transition focus:border-primary-500 focus:ring-4 focus:ring-primary-100" />
+              </div>
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Business Address</label>
+                <input type="text" value={empAddress} onChange={(e) => setEmpAddress(e.target.value)} className="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm text-slate-900 outline-none transition focus:border-primary-500 focus:ring-4 focus:ring-primary-100" />
+              </div>
+
               <div className="sm:col-span-2">
                 <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                   Website URL
@@ -595,6 +716,18 @@ export default function ProfilePage() {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Account Type</label>
+                <select value={funderAccountType} onChange={(e) => setFunderAccountType(e.target.value)} className="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm text-slate-700 outline-none transition focus:border-primary-500 focus:ring-4 focus:ring-primary-100"><option value="INDIVIDUAL">Individual Donor</option><option value="ORGANIZATION">Organization</option></select>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Organization Name</label>
+                <input type="text" value={funderOrganizationName} onChange={(e) => setFunderOrganizationName(e.target.value)} className="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm text-slate-900 outline-none transition focus:border-primary-500 focus:ring-4 focus:ring-primary-100" />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Organization Type</label>
+                <input type="text" value={funderOrganizationType} onChange={(e) => setFunderOrganizationType(e.target.value)} className="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm text-slate-900 outline-none transition focus:border-primary-500 focus:ring-4 focus:ring-primary-100" />
+              </div>
               <div>
                 <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                   Funder Category
@@ -637,6 +770,10 @@ export default function ProfilePage() {
                   className="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm text-slate-900 outline-none transition focus:border-primary-500 focus:ring-4 focus:ring-primary-100"
                 />
               </div>
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Funding Interests</label>
+                <textarea rows={3} value={funderInterests} onChange={(e) => setFunderInterests(e.target.value)} className="w-full rounded-xl border border-slate-200 bg-white p-3 text-sm text-slate-900 outline-none transition focus:border-primary-500 focus:ring-4 focus:ring-primary-100" />
+              </div>
             </div>
           </section>
         )}
@@ -652,6 +789,14 @@ export default function ProfilePage() {
                 <h2 className="text-base font-bold text-slate-900">Entrepreneur Workspace Shortcuts</h2>
                 <p className="text-xs text-slate-500">Quickly manage your micro-business funding proposals and job postings.</p>
               </div>
+            </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <label><span className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-700">Business / Proposed Name</span><input value={entrepreneurBusinessName} onChange={(e) => setEntrepreneurBusinessName(e.target.value)} className="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm" /></label>
+              <label><span className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-700">Business Category</span><input value={entrepreneurCategory} onChange={(e) => setEntrepreneurCategory(e.target.value)} className="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm" /></label>
+              <label><span className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-700">Business Stage</span><select value={entrepreneurStage} onChange={(e) => setEntrepreneurStage(e.target.value)} className="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm"><option value="IDEA">Idea stage</option><option value="EARLY">Early operations</option><option value="GROWTH">Growth stage</option></select></label>
+              <label><span className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-700">Funding Requirement</span><input type="number" min="0" value={entrepreneurFunding} onChange={(e) => setEntrepreneurFunding(e.target.value)} className="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm" /></label>
+              <label className="sm:col-span-2"><span className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-700">Business Idea</span><textarea rows={3} value={entrepreneurIdea} onChange={(e) => setEntrepreneurIdea(e.target.value)} className="w-full rounded-xl border border-slate-200 bg-white p-3.5 text-sm" /></label>
+              <label className="sm:col-span-2"><span className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-700">Skills and Experience</span><textarea rows={3} value={entrepreneurExperience} onChange={(e) => setEntrepreneurExperience(e.target.value)} className="w-full rounded-xl border border-slate-200 bg-white p-3.5 text-sm" /></label>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
               <Link
@@ -674,6 +819,21 @@ export default function ProfilePage() {
                 </div>
                 <ArrowRight size={16} className="text-primary-700 shrink-0" />
               </Link>
+            </div>
+          </section>
+        )}
+
+        {!isJobSeeker && user.roles.includes("TrainingProvider") && (
+          <section className="surface-card space-y-5 p-6 sm:p-7">
+            <div className="flex items-center gap-3 border-b border-slate-100 pb-3"><span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary-50 text-primary-700"><GraduationCap size={18} /></span><div><h2 className="text-base font-bold text-slate-900">Training Provider Profile</h2><p className="text-xs text-slate-500">Maintain your institution and course information.</p></div></div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <label><span className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-700">Institution Name *</span><input required value={trainingInstitution} onChange={(e) => setTrainingInstitution(e.target.value)} className="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm" /></label>
+              <label><span className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-700">Training Categories</span><input value={trainingCategories} onChange={(e) => setTrainingCategories(e.target.value)} className="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm" /></label>
+              <label><span className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-700">Courses Offered</span><input value={trainingCourses} onChange={(e) => setTrainingCourses(e.target.value)} className="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm" /></label>
+              <label><span className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-700">Accreditation</span><input value={trainingAccreditation} onChange={(e) => setTrainingAccreditation(e.target.value)} className="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm" /></label>
+              <label><span className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-700">Training Location</span><input value={trainingLocation} onChange={(e) => setTrainingLocation(e.target.value)} className="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm" /></label>
+              <label><span className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-700">Contact Phone</span><input value={trainingPhone} onChange={(e) => setTrainingPhone(e.target.value)} className="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm" /></label>
+              <label className="sm:col-span-2"><span className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-700">Website</span><input type="url" value={trainingWebsite} onChange={(e) => setTrainingWebsite(e.target.value)} className="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm" /></label>
             </div>
           </section>
         )}

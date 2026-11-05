@@ -153,7 +153,7 @@ export default function HomePage() {
             </div>
             <div className="absolute -bottom-5 -left-4 hidden items-center gap-3 rounded-2xl border border-slate-100 bg-white px-4 py-3 shadow-lg sm:flex">
               <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#f4ead7] text-[#9b7131]"><Languages size={18} /></span>
-              <span className="text-xs font-semibold text-slate-700">English · සිංහල · தமிழ்</span>
+              <span className="text-xs font-semibold text-slate-700"></span>
             </div>
           </div>
         </div>

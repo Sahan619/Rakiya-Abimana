@@ -33,6 +33,7 @@ export default function LoginPage() {
       const signedInUser = await login({ email, password });
       if (signedInUser.roles.includes("Admin")) router.push("/admin");
       else if (signedInUser.roles.includes("Verifier")) router.push("/verifier");
+      else if (signedInUser.roles.includes("Employer") || signedInUser.roles.includes("Entrepreneur")) router.push("/jobs/my");
       else router.push("/jobs");
     } catch (loginError) {
       setError(loginError instanceof Error ? loginError.message : "Unable to sign in. Please check your details and try again.");
@@ -56,7 +57,7 @@ export default function LoginPage() {
           <p className="flex items-center gap-2 text-sm font-semibold"><Sparkles size={16} className="text-[#e2c382]" />Find a place to grow</p>
           <p className="flex items-center gap-2 text-sm text-white/70"><BriefcaseBusiness size={16} />Discover work opportunities</p>
           <p className="flex items-center gap-2 text-sm text-white/70"><ShieldCheck size={16} />Connect through a trusted platform</p>
-          <p className="pt-1 text-xs text-white/50">English · සිංහල · தமிழ்</p>
+          <p className="pt-1 text-xs text-white/50"></p>
         </div>
       </aside>
 

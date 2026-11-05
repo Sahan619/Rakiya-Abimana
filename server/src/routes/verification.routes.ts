@@ -17,38 +17,63 @@ router.post(
   authenticateToken,
   uploadVerificationDocs.fields([
     { name: "gramaNiladhariDoc", maxCount: 1 },
-    { name: "businessRegDoc", maxCount: 1 }
+    { name: "businessRegDoc", maxCount: 1 },
+    { name: "institutionDoc", maxCount: 1 }
   ]),
   async (req: Request, res: Response) => {
     try {
       const { nicNumber } = req.body;
       const files = req.files as { [fieldname: string]: Express.Multer.File[] } | undefined;
 
-      if (!nicNumber) {
-        return res.status(400).json({ error: "NIC number is mandatory for identity verification." });
-      }
-
       const user = await prisma.user.findUnique({
-        where: { id: req.user!.id }
+        where: { id: req.user!.id },
+        include: { roles: true, funderProfile: true }
       });
 
       if (!user) {
         return res.status(404).json({ error: "User not found" });
       }
 
-      // 1. Run Verification Hook Interface (Format check & DOB extraction)
-      const hook = getVerificationHook();
-      const hookResult = await hook.verify(nicNumber, user.dateOfBirth);
+      const roles = user.roles.map((item) => item.role);
+      if (roles.includes(Role.Admin) || roles.includes(Role.Verifier)) {
+        return res.status(403).json({ error: "Administrative and verifier accounts do not submit public verification applications." });
+      }
 
-      if (!hookResult.isFormatValid) {
-        return res.status(400).json({
-          error: "Invalid Sri Lankan NIC number format.",
-          details: hookResult.details
-        });
+      const hasNic = typeof nicNumber === "string" && nicNumber.trim().length > 0;
+      const hasDocument = Boolean(
+        files?.gramaNiladhariDoc?.[0] || files?.businessRegDoc?.[0] || files?.institutionDoc?.[0]
+      );
+
+      if (roles.includes(Role.Employer) || roles.includes(Role.Entrepreneur)) {
+        if (!hasNic) return res.status(400).json({ error: "NIC is required for Employer and Entrepreneur identity verification." });
+      } else if (roles.includes(Role.Funder) && user.funderProfile?.accountType === "INDIVIDUAL" && !hasNic) {
+        return res.status(400).json({ error: "NIC is required for individual Funder identity verification." });
+      } else if (roles.includes(Role.TrainingProvider) && !hasDocument && !hasNic) {
+        return res.status(400).json({ error: "Please provide an institution document or representative identity document." });
+      } else if (roles.includes(Role.JobSeeker) && !hasNic && !hasDocument) {
+        return res.status(400).json({ error: "Verification is optional, but provide a document or NIC when submitting a request." });
+      }
+
+      // 1. Run Verification Hook Interface (Format check & DOB extraction)
+      const existingReq = await prisma.verificationRequest.findUnique({
+        where: { userId: user.id }
+      });
+
+      let hookResult: Awaited<ReturnType<ReturnType<typeof getVerificationHook>["verify"]>> | null = null;
+      if (hasNic) {
+        const hook = getVerificationHook();
+        hookResult = await hook.verify(nicNumber.trim(), user.dateOfBirth);
+
+        if (!hookResult.isFormatValid) {
+          return res.status(400).json({
+            error: "Invalid Sri Lankan NIC number format.",
+            details: hookResult.details
+          });
+        }
       }
 
       // 2. Encrypt NIC at rest using AES-256-GCM
-      const encryptedNic = encryptData(nicNumber.trim().toUpperCase());
+      const encryptedNic = hasNic ? encryptData(nicNumber.trim().toUpperCase()) : existingReq?.encryptedNic || null;
 
       // 3. Process document uploads
       const gramaDocUrl = files?.gramaNiladhariDoc?.[0]
@@ -57,25 +82,25 @@ router.post(
       const businessDocUrl = files?.businessRegDoc?.[0]
         ? `/uploads/${files.businessRegDoc[0].filename}`
         : undefined;
+      const institutionDocUrl = files?.institutionDoc?.[0]
+        ? `/uploads/${files.institutionDoc[0].filename}`
+        : undefined;
 
       // 4. Save verification request with system-calculated DOB match
-      const existingReq = await prisma.verificationRequest.findUnique({
-        where: { userId: user.id }
-      });
-
       const verificationData = {
         encryptedNic,
-        nicFormat: hookResult.format,
-        dobMatch: hookResult.dobMatch, // Uneditable system-set value!
+        nicFormat: hookResult?.format || existingReq?.nicFormat || null,
+        dobMatch: hookResult?.dobMatch ?? existingReq?.dobMatch ?? null, // Uneditable system-set value!
         gramaNiladhariDocUrl: gramaDocUrl || existingReq?.gramaNiladhariDocUrl,
         businessRegDocUrl: businessDocUrl || existingReq?.businessRegDocUrl,
+        institutionDocUrl: institutionDocUrl || existingReq?.institutionDocUrl,
         status: VerificationStatus.PENDING,
         rejectionReason: null,
         checklistResult: JSON.stringify({
-          formatCheckPassed: hookResult.isFormatValid,
-          dobMatchCalculated: hookResult.dobMatch,
-          hookUsed: hookResult.hookName,
-          hookDetails: hookResult.details
+          formatCheckPassed: hookResult?.isFormatValid ?? null,
+          dobMatchCalculated: hookResult?.dobMatch ?? null,
+          hookUsed: hookResult?.hookName || "DocumentReviewOnly",
+          hookDetails: hookResult?.details || "No NIC submitted; documents require manual review."
         })
       };
 
@@ -94,8 +119,8 @@ router.post(
         targetType: "VerificationRequest",
         targetId: record.id,
         details: {
-          nicFormat: hookResult.format,
-          dobMatch: hookResult.dobMatch
+          nicFormat: hookResult?.format || null,
+          dobMatch: hookResult?.dobMatch ?? null
         }
       });
 
@@ -125,6 +150,7 @@ router.get("/my-status", authenticateToken, async (req: Request, res: Response) 
         rejectionReason: true,
         gramaNiladhariDocUrl: true,
         businessRegDocUrl: true,
+        institutionDocUrl: true,
         reviewedAt: true,
         createdAt: true
       }
@@ -171,11 +197,13 @@ router.get(
 
       // Decrypt raw NIC only for Verifier / Admin
       const enriched = requests.map((item) => {
-        let decryptedNic = "ERROR_DECRYPTING";
-        try {
-          decryptedNic = decryptData(item.encryptedNic);
-        } catch {
-          decryptedNic = "[DECRYPTION_FAILED]";
+        let decryptedNic: string | null = null;
+        if (item.encryptedNic) {
+          try {
+            decryptedNic = decryptData(item.encryptedNic);
+          } catch {
+            decryptedNic = "[DECRYPTION_FAILED]";
+          }
         }
 
         return {
@@ -194,6 +222,7 @@ router.get(
           dobMatch: item.dobMatch,
           gramaNiladhariDocUrl: item.gramaNiladhariDocUrl,
           businessRegDocUrl: item.businessRegDocUrl,
+          institutionDocUrl: item.institutionDocUrl,
           status: item.status,
           rejectionReason: item.rejectionReason,
           checklistResult: item.checklistResult ? JSON.parse(item.checklistResult) : null,

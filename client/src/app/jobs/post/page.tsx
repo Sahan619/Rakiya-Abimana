@@ -55,7 +55,7 @@ export default function PostJobPage() {
         sourceLanguage
       });
 
-      router.push(`/jobs/${res.job.id}`);
+      router.push("/jobs/my");
     } catch (err: any) {
       setError(err.message || "Failed to publish job posting.");
     } finally {

@@ -69,7 +69,7 @@ export default function MyJobsPage() {
     setPageError(null);
     try {
       // The API filters by the authenticated user's employerId.
-      const res = await api.get<{ jobs: JobItem[] }>("/jobs/my/posted");
+      const res = await api.get<{ jobs: JobItem[] }>(`/jobs/my/posted?cacheBust=${Date.now()}`);
       setJobs(res?.jobs || []);
     } catch (err: any) {
       console.error("Failed to load posted jobs", err);
@@ -83,10 +83,13 @@ export default function MyJobsPage() {
     if (authLoading) return;
 
     if (!user || (!isEmployer && !isEntrepreneur && !isAdmin)) {
+      setJobs([]);
       setLoading(false);
       return;
     }
 
+    // Do not keep the previous account's jobs visible while the new account loads.
+    setJobs([]);
     fetchMyJobs();
     api.get("/master/districts").then((res: any) => {
       if (res?.districts) setDistricts(res.districts);

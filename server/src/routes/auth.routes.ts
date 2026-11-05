@@ -36,13 +36,19 @@ router.post("/register", async (req: Request, res: Response) => {
     const {
       email,
       password,
+      confirmPassword,
       fullName,
       dateOfBirth,
       phone,
       districtId,
       roles,
       preferredLanguage = "en",
-      termsAccepted
+      termsAccepted,
+      jobSeekerProfile,
+      employerProfile,
+      entrepreneurProfile,
+      funderProfile,
+      trainingProviderProfile
     } = req.body;
 
     // Consent checkbox validation
@@ -52,8 +58,16 @@ router.post("/register", async (req: Request, res: Response) => {
       });
     }
 
-    if (!email || !password || !fullName || !dateOfBirth) {
-      return res.status(400).json({ error: "Missing required fields: email, password, fullName, and dateOfBirth are mandatory." });
+    if (!email || !password || !confirmPassword || !fullName || !dateOfBirth) {
+      return res.status(400).json({ error: "Full name, email, password, password confirmation, and date of birth are required." });
+    }
+
+    if (typeof password !== "string" || password.length < 8) {
+      return res.status(400).json({ error: "Password must be at least 8 characters long." });
+    }
+
+    if (password !== confirmPassword) {
+      return res.status(400).json({ error: "Password and confirmation do not match." });
     }
 
     const existingUser = await prisma.user.findUnique({
@@ -65,12 +79,36 @@ router.post("/register", async (req: Request, res: Response) => {
     }
 
     // Role validation: Admin and Verifier accounts cannot be self-registered
-    const requestedRoles: Role[] = Array.isArray(roles) && roles.length > 0 ? roles : [Role.JobSeeker];
+    const requestedRoles: Role[] = Array.isArray(roles) && roles.length > 0 ? Array.from(new Set(roles)) : [Role.JobSeeker];
     const invalidRoles = requestedRoles.filter((r) => !ALLOWED_REGISTER_ROLES.includes(r));
     if (invalidRoles.length > 0) {
       return res.status(400).json({
         error: `Cannot self-register for restricted role(s): ${invalidRoles.join(", ")}. Verifier and Admin accounts are created by an administrator.`
       });
+    }
+
+    const hasRole = (role: Role) => requestedRoles.includes(role);
+    if (hasRole(Role.Employer) && !employerProfile?.companyName?.trim()) {
+      return res.status(400).json({ error: "Company or business name is required for Employer registration." });
+    }
+    if (hasRole(Role.JobSeeker) && !jobSeekerProfile?.skills?.trim()) {
+      return res.status(400).json({ error: "Skills are required for Job Seeker registration." });
+    }
+    if (hasRole(Role.Funder) && !["INDIVIDUAL", "ORGANIZATION"].includes(String(funderProfile?.accountType || ""))) {
+      return res.status(400).json({ error: "Funder account type must be INDIVIDUAL or ORGANIZATION." });
+    }
+    if (hasRole(Role.TrainingProvider) && !trainingProviderProfile?.institutionName?.trim()) {
+      return res.status(400).json({ error: "Institution or training provider name is required." });
+    }
+
+    const numericFields = [
+      ["experienceYears", jobSeekerProfile?.experienceYears],
+      ["expectedSalary", jobSeekerProfile?.expectedSalary],
+      ["fundingRequirement", entrepreneurProfile?.fundingRequirement]
+    ] as const;
+    const invalidNumericField = numericFields.find(([, value]) => value !== undefined && value !== "" && !Number.isFinite(Number(value)));
+    if (invalidNumericField) {
+      return res.status(400).json({ error: `${invalidNumericField[0]} must be a valid number.` });
     }
 
     // Lookup default district coordinates if provided
@@ -86,6 +124,9 @@ router.post("/register", async (req: Request, res: Response) => {
 
     const passwordHash = await bcrypt.hash(password, 10);
     const dob = new Date(dateOfBirth);
+    if (Number.isNaN(dob.getTime())) {
+      return res.status(400).json({ error: "Date of birth must be a valid date." });
+    }
 
     const newUser = await prisma.user.create({
       data: {
@@ -101,11 +142,72 @@ router.post("/register", async (req: Request, res: Response) => {
         termsAcceptedAt: new Date(),
         roles: {
           create: requestedRoles.map((r) => ({ role: r }))
-        }
+        },
+        jobSeekerProfile: hasRole(Role.JobSeeker) ? {
+          create: {
+            category: String(jobSeekerProfile?.category || "skilled tradesperson").trim(),
+            skills: String(jobSeekerProfile?.skills || "Not provided").trim(),
+            trade: jobSeekerProfile?.trade?.trim() || null,
+            experienceYears: Number.isFinite(Number(jobSeekerProfile?.experienceYears)) ? Number(jobSeekerProfile.experienceYears) : 0,
+            bio: jobSeekerProfile?.bio?.trim() || null,
+            educationQualifications: jobSeekerProfile?.educationQualifications?.trim() || null,
+            preferredCategories: jobSeekerProfile?.preferredCategories?.trim() || null,
+            preferredLocations: jobSeekerProfile?.preferredLocations?.trim() || null,
+            expectedSalary: jobSeekerProfile?.expectedSalary !== undefined && jobSeekerProfile?.expectedSalary !== "" ? Number(jobSeekerProfile.expectedSalary) : null
+          }
+        } : undefined,
+        employerProfile: hasRole(Role.Employer) ? {
+          create: {
+            companyName: employerProfile.companyName.trim(),
+            businessRegNumber: employerProfile.businessRegNumber?.trim() || null,
+            description: employerProfile.description?.trim() || null,
+            industry: employerProfile.industry?.trim() || null,
+            businessAddress: employerProfile.businessAddress?.trim() || null,
+            contactPhone: employerProfile.contactPhone?.trim() || phone?.trim() || null,
+            website: employerProfile.website?.trim() || null
+          }
+        } : undefined,
+        entrepreneurProfile: hasRole(Role.Entrepreneur) ? {
+          create: {
+            businessName: entrepreneurProfile?.businessName?.trim() || null,
+            businessCategory: entrepreneurProfile?.businessCategory?.trim() || null,
+            businessIdea: entrepreneurProfile?.businessIdea?.trim() || null,
+            businessStage: entrepreneurProfile?.businessStage?.trim() || null,
+            fundingRequirement: entrepreneurProfile?.fundingRequirement !== undefined && entrepreneurProfile?.fundingRequirement !== "" ? Number(entrepreneurProfile.fundingRequirement) : null,
+            skillsExperience: entrepreneurProfile?.skillsExperience?.trim() || null
+          }
+        } : undefined,
+        funderProfile: hasRole(Role.Funder) ? {
+          create: {
+            accountType: String(funderProfile.accountType),
+            funderType: String(funderProfile.organizationType || "individual").trim(),
+            organizationName: funderProfile.organizationName?.trim() || null,
+            organizationType: funderProfile.organizationType?.trim() || null,
+            fundingInterests: funderProfile.fundingInterests?.trim() || null,
+            focusDistricts: funderProfile.focusDistricts?.trim() || null,
+            focusSectors: funderProfile.focusSectors?.trim() || null
+          }
+        } : undefined,
+        trainingProviderProfile: hasRole(Role.TrainingProvider) ? {
+          create: {
+            institutionName: trainingProviderProfile.institutionName.trim(),
+            trainingCategories: trainingProviderProfile.trainingCategories?.trim() || null,
+            coursesOffered: trainingProviderProfile.coursesOffered?.trim() || null,
+            accreditation: trainingProviderProfile.accreditation?.trim() || null,
+            trainingLocation: trainingProviderProfile.trainingLocation?.trim() || null,
+            contactPhone: trainingProviderProfile.contactPhone?.trim() || phone?.trim() || null,
+            website: trainingProviderProfile.website?.trim() || null
+          }
+        } : undefined
       },
       include: {
         roles: true,
-        district: true
+        district: true,
+        jobSeekerProfile: true,
+        employerProfile: true,
+        entrepreneurProfile: true,
+        funderProfile: true,
+        trainingProviderProfile: true
       }
     });
 
@@ -125,7 +227,12 @@ router.post("/register", async (req: Request, res: Response) => {
         district: newUser.district,
         preferredLanguage: newUser.preferredLanguage,
         isVerified: newUser.isVerified,
-        roles: newUser.roles.map((r) => r.role)
+        roles: newUser.roles.map((r) => r.role),
+        jobSeekerProfile: newUser.jobSeekerProfile,
+        employerProfile: newUser.employerProfile,
+        entrepreneurProfile: newUser.entrepreneurProfile,
+        funderProfile: newUser.funderProfile,
+        trainingProviderProfile: newUser.trainingProviderProfile
       }
     });
   } catch (err: any) {
@@ -148,6 +255,11 @@ router.post("/login", async (req: Request, res: Response) => {
       include: {
         roles: true,
         district: true,
+      jobSeekerProfile: true,
+      employerProfile: true,
+      entrepreneurProfile: true,
+      funderProfile: true,
+      trainingProviderProfile: true,
         verificationRequest: {
           select: { status: true, rejectionReason: true, dobMatch: true }
         }
@@ -184,6 +296,11 @@ router.post("/login", async (req: Request, res: Response) => {
         preferredLanguage: user.preferredLanguage,
         isVerified: user.isVerified,
         roles: user.roles.map((r) => r.role),
+        jobSeekerProfile: user.jobSeekerProfile,
+        employerProfile: user.employerProfile,
+        entrepreneurProfile: user.entrepreneurProfile,
+        funderProfile: user.funderProfile,
+        trainingProviderProfile: user.trainingProviderProfile,
         verification: user.verificationRequest
       }
     });
@@ -209,7 +326,9 @@ router.get("/me", authenticateToken, async (req: Request, res: Response) => {
         district: true,
         jobSeekerProfile: true,
         employerProfile: true,
+        entrepreneurProfile: true,
         funderProfile: true,
+        trainingProviderProfile: true,
         verificationRequest: {
           select: {
             status: true,
@@ -242,7 +361,9 @@ router.get("/me", authenticateToken, async (req: Request, res: Response) => {
         roles: user.roles.map((r) => r.role),
         jobSeekerProfile: user.jobSeekerProfile,
         employerProfile: user.employerProfile,
+        entrepreneurProfile: user.entrepreneurProfile,
         funderProfile: user.funderProfile,
+        trainingProviderProfile: user.trainingProviderProfile,
         verification: user.verificationRequest
       }
     });

@@ -24,7 +24,9 @@ export interface User {
   roles: string[];
   jobSeekerProfile?: any;
   employerProfile?: any;
+  entrepreneurProfile?: any;
   funderProfile?: any;
+  trainingProviderProfile?: any;
   verification?: {
     status: "PENDING" | "APPROVED" | "REJECTED";
     rejectionReason?: string;

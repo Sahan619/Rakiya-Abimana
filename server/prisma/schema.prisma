@@ -49,60 +49,66 @@ enum FundingType {
 }
 
 model User {
-  id                String       @id @default(uuid())
-  email             String       @unique
+  id                String    @id @default(uuid())
+  email             String    @unique
   passwordHash      String
   fullName          String
   dateOfBirth       DateTime
   phone             String?
   districtId        String?
-  district          District?    @relation(fields: [districtId], references: [id])
+  district          District? @relation(fields: [districtId], references: [id])
   lat               Float?
   lng               Float?
-  preferredLanguage String       @default("en") // "en", "si", "ta"
-  isVerified        Boolean      @default(false)
-  isActive          Boolean      @default(true) // soft delete
-  termsAcceptedAt   DateTime     @default(now())
-  createdAt         DateTime     @default(now())
-  updatedAt         DateTime     @updatedAt
+  preferredLanguage String    @default("en") // "en", "si", "ta"
+  isVerified        Boolean   @default(false)
+  isActive          Boolean   @default(true) // soft delete
+  termsAcceptedAt   DateTime  @default(now())
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
-  roles             UserRole[]
-  jobSeekerProfile  JobSeekerProfile?
-  employerProfile   EmployerProfile?
-  funderProfile     FunderProfile?
-  verificationRequest VerificationRequest?
+  roles                   UserRole[]
+  jobSeekerProfile        JobSeekerProfile?
+  employerProfile         EmployerProfile?
+  entrepreneurProfile     EntrepreneurProfile?
+  funderProfile           FunderProfile?
+  trainingProviderProfile TrainingProviderProfile?
+  verificationRequest     VerificationRequest?
 
-  jobsPosted        Job[]
-  jobApplications   JobApplication[]
-  pitches           Pitch[]
-  pitchInterests    PitchInterest[]
+  jobsPosted      Job[]
+  jobApplications JobApplication[]
+  pitches         Pitch[]
+  pitchInterests  PitchInterest[]
 
-  sentMessages      Message[]    @relation("SentMessages")
-  receivedMessages  Message[]    @relation("ReceivedMessages")
-  notifications     Notification[]
-  auditActions      AuditLog[]   @relation("ActorLogs")
+  sentMessages     Message[]      @relation("SentMessages")
+  receivedMessages Message[]      @relation("ReceivedMessages")
+  notifications    Notification[]
+  auditActions     AuditLog[]     @relation("ActorLogs")
 }
 
 model UserRole {
-  id        String   @id @default(uuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  role      Role
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role   Role
 
   @@unique([userId, role])
 }
 
 model JobSeekerProfile {
-  id              String   @id @default(uuid())
-  userId          String   @unique
-  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  category        String   // blue-collar, skilled tradesperson, white-collar
-  skills          String   // comma separated or JSON string
-  trade           String?
-  experienceYears Int?     @default(0)
-  bio             String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id                      String   @id @default(uuid())
+  userId                  String   @unique
+  user                    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category                String // blue-collar, skilled tradesperson, white-collar
+  skills                  String // comma separated or JSON string
+  trade                   String?
+  experienceYears         Int?     @default(0)
+  bio                     String?
+  educationQualifications String?
+  preferredCategories     String?
+  preferredLocations      String?
+  expectedSalary          Float?
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
 }
 
 model EmployerProfile {
@@ -112,59 +118,95 @@ model EmployerProfile {
   companyName       String
   businessRegNumber String?
   description       String?
+  industry          String?
+  businessAddress   String?
+  contactPhone      String?
   website           String?
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 }
 
+model EntrepreneurProfile {
+  id                 String   @id @default(uuid())
+  userId             String   @unique
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  businessName       String?
+  businessCategory   String?
+  businessIdea       String?
+  businessStage      String?
+  fundingRequirement Float?
+  skillsExperience   String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
 model FunderProfile {
-  id             String   @id @default(uuid())
-  userId         String   @unique
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  funderType     String   // CSR business, diaspora donor, registered MFI, angel donor, NGO
-  focusDistricts String?  // comma-separated district IDs
-  focusSectors   String?  // comma-separated sector IDs
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id               String   @id @default(uuid())
+  userId           String   @unique
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  funderType       String // CSR business, diaspora donor, registered MFI, angel donor, NGO
+  accountType      String   @default("ORGANIZATION")
+  organizationName String?
+  organizationType String?
+  fundingInterests String?
+  focusDistricts   String? // comma-separated district IDs
+  focusSectors     String? // comma-separated sector IDs
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model TrainingProviderProfile {
+  id                 String   @id @default(uuid())
+  userId             String   @unique
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  institutionName    String
+  trainingCategories String?
+  coursesOffered     String?
+  accreditation      String?
+  trainingLocation   String?
+  contactPhone       String?
+  website            String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 }
 
 model District {
-  id        String   @id // e.g. "colombo", "gampaha", "kandy", "jaffna"
-  nameEn    String
-  nameSi    String
-  nameTa    String
-  province  String
-  lat       Float
-  lng       Float
+  id       String @id // e.g. "colombo", "gampaha", "kandy", "jaffna"
+  nameEn   String
+  nameSi   String
+  nameTa   String
+  province String
+  lat      Float
+  lng      Float
 
-  users     User[]
-  jobs      Job[]
-  pitches   Pitch[]
+  users   User[]
+  jobs    Job[]
+  pitches Pitch[]
 }
 
 model JobCategory {
-  id        String   @id
-  nameEn    String
-  nameSi    String
-  nameTa    String
-  trades    Trade[]
+  id     String  @id
+  nameEn String
+  nameSi String
+  nameTa String
+  trades Trade[]
 }
 
 model Trade {
-  id          String      @id
-  categoryId  String
-  category    JobCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  nameEn      String
-  nameSi      String
-  nameTa      String
+  id         String      @id
+  categoryId String
+  category   JobCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  nameEn     String
+  nameSi     String
+  nameTa     String
 }
 
 model Sector {
-  id        String   @id
-  nameEn    String
-  nameSi    String
-  nameTa    String
-  pitches   Pitch[]
+  id      String  @id
+  nameEn  String
+  nameSi  String
+  nameTa  String
+  pitches Pitch[]
 }
 
 model SystemSetting {
@@ -178,14 +220,15 @@ model VerificationRequest {
   id                   String             @id @default(uuid())
   userId               String             @unique
   user                 User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  encryptedNic         String             // AES-256-GCM encrypted
-  nicFormat            String             // "OLD" | "NEW"
-  dobMatch             Boolean            // system-set, uneditable by anyone
+  encryptedNic         String? // AES-256-GCM encrypted; optional for document-only flows
+  nicFormat            String? // "OLD" | "NEW"
+  dobMatch             Boolean? // system-set, uneditable by anyone
   gramaNiladhariDocUrl String?
   businessRegDocUrl    String?
+  institutionDocUrl    String?
   status               VerificationStatus @default(PENDING)
   rejectionReason      String?
-  checklistResult      String?            // JSON string with checklist checks
+  checklistResult      String? // JSON string with checklist checks
   reviewerId           String?
   reviewedAt           DateTime?
   createdAt            DateTime           @default(now())
@@ -193,24 +236,24 @@ model VerificationRequest {
 }
 
 model Job {
-  id             String           @id @default(uuid())
+  id             String    @id @default(uuid())
   employerId     String
-  employer       User             @relation(fields: [employerId], references: [id], onDelete: Cascade)
+  employer       User      @relation(fields: [employerId], references: [id], onDelete: Cascade)
   title          String
   category       String
   districtId     String
-  district       District         @relation(fields: [districtId], references: [id])
-  lat            Float            // district or approximate lat
-  lng            Float            // district or approximate lng
+  district       District  @relation(fields: [districtId], references: [id])
+  lat            Float // district or approximate lat
+  lng            Float // district or approximate lng
   wage           Float
-  wageType       String           @default("MONTHLY") // DAILY, MONTHLY, PIECE_RATE, HOURLY
+  wageType       String    @default("MONTHLY") // DAILY, MONTHLY, PIECE_RATE, HOURLY
   description    String
-  sourceLanguage String           @default("en")
-  status         JobStatus        @default(OPEN)
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
+  sourceLanguage String    @default("en")
+  status         JobStatus @default(OPEN)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
-  applications   JobApplication[]
+  applications JobApplication[]
 }
 
 model JobApplication {
@@ -228,25 +271,25 @@ model JobApplication {
 }
 
 model Pitch {
-  id              String         @id @default(uuid())
+  id              String      @id @default(uuid())
   entrepreneurId  String
-  entrepreneur    User           @relation(fields: [entrepreneurId], references: [id], onDelete: Cascade)
+  entrepreneur    User        @relation(fields: [entrepreneurId], references: [id], onDelete: Cascade)
   title           String
   story           String
   districtId      String
-  district        District       @relation(fields: [districtId], references: [id])
+  district        District    @relation(fields: [districtId], references: [id])
   sectorId        String?
-  sector          Sector?        @relation(fields: [sectorId], references: [id])
+  sector          Sector?     @relation(fields: [sectorId], references: [id])
   fundingNeeded   Float
-  fundingType     FundingType    @default(MICRO_LOAN)
-  status          PitchStatus    @default(PENDING_REVIEW)
+  fundingType     FundingType @default(MICRO_LOAN)
+  status          PitchStatus @default(PENDING_REVIEW)
   rejectionReason String?
   checklistResult String?
-  sourceLanguage  String         @default("en")
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
+  sourceLanguage  String      @default("en")
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
 
-  interests       PitchInterest[]
+  interests PitchInterest[]
 }
 
 model PitchInterest {
@@ -262,8 +305,8 @@ model PitchInterest {
 
 model Conversation {
   id             String    @id @default(uuid())
-  type           String    // "JOB_APPLICATION" | "PITCH_INTEREST" | "DIRECT"
-  referenceId    String?   // jobId, pitchId, etc.
+  type           String // "JOB_APPLICATION" | "PITCH_INTEREST" | "DIRECT"
+  referenceId    String? // jobId, pitchId, etc.
   participant1Id String
   participant2Id String
   createdAt      DateTime  @default(now())
@@ -299,7 +342,7 @@ model Notification {
   id        String   @id @default(uuid())
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  type      String   // VERIFICATION, APPLICATION, MESSAGE, PLEDGE, SYSTEM
+  type      String // VERIFICATION, APPLICATION, MESSAGE, PLEDGE, SYSTEM
   title     String
   message   String
   link      String?
@@ -318,4 +361,3 @@ model AuditLog {
   ipAddress  String?
   createdAt  DateTime @default(now())
 }
-
