@@ -218,11 +218,13 @@ test("funder directory access requires a verified Entrepreneur", () => {
 test("chat pairs permit only the defined role pairings and context types", () => {
   assert.equal(chatPairAllows([Role.JobSeeker], [Role.Employer], "JOB_APPLICATION"), true);
   assert.equal(chatPairAllows([Role.Entrepreneur], [Role.Funder], "PITCH_INTEREST"), true);
+  assert.equal(chatPairAllows([Role.Entrepreneur], [Role.Funder], "FUNDER_DIRECTORY"), true);
   assert.equal(chatPairAllows([Role.Employer], [Role.JobSeeker], "JOB_APPLICATION"), true);
   assert.equal(chatPairAllows([Role.Funder], [Role.Entrepreneur], "PITCH_INTEREST"), true);
   assert.equal(chatPairAllows([Role.JobSeeker], [Role.Funder], "JOB_APPLICATION"), false);
   assert.equal(chatPairAllows([Role.Entrepreneur], [Role.Employer], "PITCH_INTEREST"), false);
   assert.equal(chatPairAllows([Role.Employer], [Role.JobSeeker], "PITCH_INTEREST"), false);
+  assert.equal(chatPairAllows([Role.JobSeeker], [Role.Funder], "FUNDER_DIRECTORY"), false);
   assert.equal(chatPairAllows([Role.JobSeeker, Role.TrainingProvider], [Role.Employer], "JOB_APPLICATION"), true);
   assert.equal(chatPairAllows([Role.TrainingProvider], [Role.Employer], "JOB_APPLICATION"), false);
 });

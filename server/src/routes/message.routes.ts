@@ -36,6 +36,15 @@ async function isConversationAllowed(
       select: { entrepreneurId: true }
     });
     contextOwnerId = pitch?.entrepreneurId ?? null;
+  } else if (type === "FUNDER_DIRECTORY") {
+    const funderId = participant1Roles.includes(Role.Funder)
+      ? participant1Id
+      : participant2Roles.includes(Role.Funder)
+        ? participant2Id
+        : null;
+    const hasEntrepreneur = participant1Roles.includes(Role.Entrepreneur) ||
+      participant2Roles.includes(Role.Entrepreneur);
+    return hasEntrepreneur && funderId === referenceId;
   }
 
   return contextOwnerId === participant1Id || contextOwnerId === participant2Id;
@@ -137,7 +146,15 @@ router.get("/conversations", async (req: Request, res: Response) => {
 });
 
 // POST /api/messages/conversations - Start or find conversation
-router.post("/conversations", async (req: Request, res: Response) => {
+router.post(
+  "/conversations",
+  (req: Request, res: Response, next) => {
+    if (req.body?.type !== "FUNDER_DIRECTORY") {
+      return next();
+    }
+    return requirePermission("funder:contact")(req, res, next);
+  },
+  async (req: Request, res: Response) => {
   try {
     const { recipientId, type, referenceId } = req.body;
 
@@ -157,12 +174,25 @@ router.post("/conversations", async (req: Request, res: Response) => {
       where: { id: recipientId },
       select: {
         isActive: true,
+        isVerified: true,
         roles: { select: { role: true } }
       }
     });
 
     if (!recipient?.isActive) {
       return res.status(404).json({ error: "Recipient not found" });
+    }
+
+    if (
+      type === "FUNDER_DIRECTORY" &&
+      (
+        !req.user!.roles.includes(Role.Entrepreneur) ||
+        !recipient.roles.some((role) => role.role === Role.Funder) ||
+        !recipient.isVerified ||
+        referenceId !== recipientId
+      )
+    ) {
+      return res.status(403).json({ error: "Funder is not available in the directory." });
     }
 
     if (
@@ -188,7 +218,8 @@ router.post("/conversations", async (req: Request, res: Response) => {
         type,
         referenceId: referenceId || null
       }
-    });
+      }
+    );
 
     if (!conv) {
       conv = await prisma.conversation.create({
