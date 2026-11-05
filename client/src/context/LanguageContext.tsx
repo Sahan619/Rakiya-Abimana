@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useCallback, useContext, useState, useEffect } from "react";
 import enMessages from "../../messages/en.json";
 import siMessages from "../../messages/si.json";
 import taMessages from "../../messages/ta.json";
@@ -17,35 +17,42 @@ const messagesMap: Record<Locale, any> = {
 interface LanguageContextType {
   locale: Locale;
   setLocale: (newLocale: Locale) => Promise<void>;
+  setLocaleLocal: (newLocale: string) => void;
   t: (path: string, fallback?: string) => string;
 }
 
 const LanguageContext = createContext<LanguageContextType>({
   locale: "en",
   setLocale: async () => {},
+  setLocaleLocal: () => {},
   t: () => ""
 });
 
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
   const [locale, setLocaleState] = useState<Locale>("en");
 
+  const setLocaleLocal = useCallback((newLocale: string) => {
+    if (newLocale !== "en" && newLocale !== "si" && newLocale !== "ta") return;
+    setLocaleState(newLocale);
+    localStorage.setItem("preferred_lang", newLocale);
+  }, []);
+
   useEffect(() => {
     const saved = localStorage.getItem("preferred_lang") as Locale;
     if (saved && (saved === "en" || saved === "si" || saved === "ta")) {
-      setLocaleState(saved);
+      setLocaleLocal(saved);
     }
-  }, []);
+  }, [setLocaleLocal]);
 
-  const setLocale = async (newLocale: Locale) => {
-    setLocaleState(newLocale);
-    localStorage.setItem("preferred_lang", newLocale);
+  const setLocale = useCallback(async (newLocale: Locale) => {
+    setLocaleLocal(newLocale);
     try {
       // Sync with user profile on server if user is logged in
       await api.put("/auth/profile", { preferredLanguage: newLocale });
     } catch {
       // Ignore if user is guest
     }
-  };
+  }, [setLocaleLocal]);
 
   const t = (path: string, fallback?: string): string => {
     const keys = path.split(".");
@@ -72,7 +79,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <LanguageContext.Provider value={{ locale, setLocale, t }}>
+    <LanguageContext.Provider value={{ locale, setLocale, setLocaleLocal, t }}>
       {children}
     </LanguageContext.Provider>
   );
@@ -81,4 +88,3 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
 export function useLanguage() {
   return useContext(LanguageContext);
 }
-

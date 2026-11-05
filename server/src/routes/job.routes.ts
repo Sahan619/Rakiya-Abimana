@@ -4,7 +4,11 @@ import { authenticateToken, optionalAuth } from "../middleware/auth.middleware";
 import { requirePermission } from "../middleware/role.middleware";
 import { hasPermission } from "../config/permissions";
 import { calculateHaversineDistance, roundCoordinates } from "../services/geo.service";
-import { translateWithCache } from "../services/translation.service";
+import {
+  detectSourceLanguage,
+  isAutoTranslationEnabled,
+  translateWithCache
+} from "../services/translation.service";
 import { SRI_LANKA_DISTRICTS } from "../constants/districts";
 import { createNotification } from "../services/notification.service";
 import { logAuditAction } from "../services/audit.service";
@@ -25,7 +29,7 @@ async function enrichJobWithTranslation(prismaClient: PrismaClient, job: any, ta
     const descTrans = await translateWithCache(prismaClient, job.description, sourceLang, targetLang);
     title = titleTrans.text;
     description = descTrans.text;
-    isMachineTranslated = true;
+    isMachineTranslated = titleTrans.isMachineTranslated || descTrans.isMachineTranslated;
   }
 
   const approxCoords = roundCoordinates(job.lat, job.lng);
@@ -307,6 +311,10 @@ router.post(
       if (!title || !category || !districtId || !wage || !description) {
         return res.status(400).json({ error: "Title, category, district, wage, and description are required." });
       }
+      const detectedSourceLanguage = detectSourceLanguage(
+        `${title.trim()} ${description.trim()}`,
+        sourceLanguage
+      );
 
       // Default lat/lng from district if not provided
       let finalLat = lat ? parseFloat(lat) : undefined;
@@ -332,7 +340,7 @@ router.post(
           wage: parseFloat(wage),
           wageType,
           description: description.trim(),
-          sourceLanguage,
+          sourceLanguage: detectedSourceLanguage,
           lat: finalLat,
           lng: finalLng,
           status: JobStatus.OPEN
@@ -341,10 +349,10 @@ router.post(
       });
 
       // Translation Pipeline: Pre-cache translations in other languages
-      const targetLangs = ["en", "si", "ta"].filter((l) => l !== sourceLanguage);
+      const targetLangs = ["en", "si", "ta"].filter((l) => l !== detectedSourceLanguage);
       for (const tLang of targetLangs) {
-        await translateWithCache(prisma, job.title, sourceLanguage, tLang);
-        await translateWithCache(prisma, job.description, sourceLanguage, tLang);
+        await translateWithCache(prisma, job.title, detectedSourceLanguage, tLang);
+        await translateWithCache(prisma, job.description, detectedSourceLanguage, tLang);
       }
 
       await logAuditAction(prisma, {
@@ -356,7 +364,9 @@ router.post(
       });
 
       return res.status(201).json({
-        message: "Job published successfully with automated multilingual translations.",
+        message: isAutoTranslationEnabled()
+          ? "Job published successfully with automated multilingual translations."
+          : "Job published successfully.",
         job
       });
     } catch (err) {
@@ -437,17 +447,26 @@ router.put(
       }
     }
 
+    const newTitle = title !== undefined ? title.trim() : existing.title;
+    const newDescription = description !== undefined ? description.trim() : existing.description;
+    const titleChanged = newTitle !== existing.title;
+    const descChanged = newDescription !== existing.description;
+    const sourceLang = titleChanged || descChanged
+      ? detectSourceLanguage(`${newTitle} ${newDescription}`, existing.sourceLanguage || "en")
+      : existing.sourceLanguage || "en";
+
     const updated = await prisma.job.update({
       where: { id },
       data: {
-        title: title ? title.trim() : undefined,
+        title: titleChanged ? newTitle : undefined,
         category: category || undefined,
         districtId: districtId || undefined,
         lat: newLat !== undefined ? newLat : undefined,
         lng: newLng !== undefined ? newLng : undefined,
         wage: parsedWage !== undefined ? parsedWage : undefined,
         wageType: wageType || undefined,
-        description: description ? description.trim() : undefined
+        description: descChanged ? newDescription : undefined,
+        sourceLanguage: titleChanged || descChanged ? sourceLang : undefined
       },
       include: {
         district: true
@@ -455,10 +474,7 @@ router.put(
     });
 
     // Translation Pipeline: Update pre-cached translations if title or description changed
-    const titleChanged = title && title.trim() !== existing.title;
-    const descChanged = description && description.trim() !== existing.description;
     if (titleChanged || descChanged) {
-      const sourceLang = existing.sourceLanguage || "en";
       const targetLangs = ["en", "si", "ta"].filter((l) => l !== sourceLang);
       for (const tLang of targetLangs) {
         if (titleChanged) {

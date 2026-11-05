@@ -1,12 +1,19 @@
 import crypto from "crypto";
 import { PrismaClient } from "@prisma/client";
 
-export interface ITranslationProvider {
-  name: string;
-  translateText(text: string, fromLang: string, toLang: string): Promise<string>;
+export type TranslationLanguage = "en" | "si" | "ta";
+
+export interface TranslationOutcome {
+  text: string;
+  provider: string;
+  cacheable: boolean;
 }
 
-// Common Sri Lankan terms dictionary for Mock Provider
+export interface ITranslationProvider {
+  name: string;
+  translateText(text: string, fromLang: string, toLang: string): Promise<TranslationOutcome>;
+}
+
 const DICTIONARY: Record<string, { si: string; ta: string }> = {
   "carpenter": { si: "වඩු කාර්මික", ta: "தச்சர்" },
   "electrician": { si: "විදුලි කාර්මික", ta: "மின்சார வல்லுநர்" },
@@ -37,65 +44,66 @@ const DICTIONARY: Record<string, { si: string; ta: string }> = {
   "verified": { si: "තහවුරු කරන ලදී", ta: "சரிபார்க்கப்பட்டது" }
 };
 
+function normalizedPhrase(text: string): string {
+  return text.trim().toLocaleLowerCase();
+}
+
+export function detectSourceLanguage(text: string, fallback = "en"): TranslationLanguage {
+  let sinhalaCharacters = 0;
+  let tamilCharacters = 0;
+
+  for (const character of text) {
+    const codePoint = character.codePointAt(0) || 0;
+    if (codePoint >= 0x0d80 && codePoint <= 0x0dff) sinhalaCharacters++;
+    if (codePoint >= 0x0b80 && codePoint <= 0x0bff) tamilCharacters++;
+  }
+
+  if (sinhalaCharacters > tamilCharacters) return "si";
+  if (tamilCharacters > sinhalaCharacters) return "ta";
+  return fallback === "si" || fallback === "ta" ? fallback : "en";
+}
+
+export function isAutoTranslationEnabled(): boolean {
+  const setting = process.env.AUTO_TRANSLATE_ENABLED?.trim().toLowerCase();
+  return setting !== "false" && setting !== "0";
+}
+
 export class MockTranslationProvider implements ITranslationProvider {
   name = "MockTranslationProvider";
 
-  async translateText(text: string, fromLang: string, toLang: string): Promise<string> {
-    if (!text || fromLang === toLang) {
-      return text;
+  async translateText(text: string, fromLang: string, toLang: string): Promise<TranslationOutcome> {
+    const unchanged = (): TranslationOutcome => ({ text, provider: this.name, cacheable: true });
+    if (!text || fromLang === toLang) return unchanged();
+
+    const phrase = normalizedPhrase(text);
+    if (toLang === "si" || toLang === "ta") {
+      const exactMatch = DICTIONARY[phrase];
+      return exactMatch
+        ? { text: exactMatch[toLang], provider: this.name, cacheable: true }
+        : unchanged();
     }
 
-    const clean = text.trim();
-    const lower = clean.toLowerCase();
-
-    // Check direct dictionary match
-    if (DICTIONARY[lower] && (toLang === "si" || toLang === "ta")) {
-      return DICTIONARY[lower][toLang];
+    if (toLang === "en" && (fromLang === "si" || fromLang === "ta")) {
+      const exactMatch = Object.entries(DICTIONARY).find(([, translations]) =>
+        normalizedPhrase(translations[fromLang]) === phrase
+      );
+      return exactMatch
+        ? { text: exactMatch[0], provider: this.name, cacheable: true }
+        : unchanged();
     }
 
-    // Replace known dictionary words if found in text
-    let translated = clean;
-    for (const [key, val] of Object.entries(DICTIONARY)) {
-      const regex = new RegExp(`\\b${key}\\b`, "gi");
-      if (toLang === "si") {
-        translated = translated.replace(regex, val.si);
-      } else if (toLang === "ta") {
-        translated = translated.replace(regex, val.ta);
-      } else if (toLang === "en") {
-        // Reverse match if translation to English
-        if (clean.includes(val.si)) translated = translated.replace(val.si, key);
-        if (clean.includes(val.ta)) translated = translated.replace(val.ta, key);
-      }
-    }
-
-    if (toLang === "si") {
-      return translated !== clean ? translated : `[සිංහල] ${clean}`;
-    }
-    if (toLang === "ta") {
-      return translated !== clean ? translated : `[தமிழ்] ${clean}`;
-    }
-    if (toLang === "en") {
-      return translated !== clean ? translated : `[English] ${clean}`;
-    }
-
-    return clean;
+    return unchanged();
   }
 }
 
 export class GoogleTranslationProvider implements ITranslationProvider {
   name = "GoogleTranslationProvider";
-  private apiKey: string;
 
-  constructor(apiKey: string) {
-    this.apiKey = apiKey;
-  }
+  constructor(private readonly apiKey: string) {}
 
-  async translateText(text: string, fromLang: string, toLang: string): Promise<string> {
-    if (!text || fromLang === toLang) return text;
-    if (!this.apiKey) {
-      // Fallback to mock if API key is not configured
-      const fallback = new MockTranslationProvider();
-      return fallback.translateText(text, fromLang, toLang);
+  async translateText(text: string, fromLang: string, toLang: string): Promise<TranslationOutcome> {
+    if (!text || fromLang === toLang) {
+      return { text, provider: this.name, cacheable: true };
     }
 
     try {
@@ -115,12 +123,19 @@ export class GoogleTranslationProvider implements ITranslationProvider {
         throw new Error(`Google Translate error: ${response.statusText}`);
       }
 
-      const data = (await response.json()) as any;
-      return data.data.translations[0].translatedText;
-    } catch (err) {
-      console.warn("Google Translate failed, falling back to mock:", err);
-      const fallback = new MockTranslationProvider();
-      return fallback.translateText(text, fromLang, toLang);
+      const data = await response.json() as {
+        data?: { translations?: Array<{ translatedText?: string }> };
+      };
+      const translatedText = data.data?.translations?.[0]?.translatedText;
+      if (typeof translatedText !== "string") {
+        throw new Error("Google Translate returned an invalid response.");
+      }
+
+      return { text: translatedText, provider: this.name, cacheable: true };
+    } catch (error) {
+      console.warn("Google Translate failed, falling back to mock:", error);
+      const fallback = await new MockTranslationProvider().translateText(text, fromLang, toLang);
+      return { ...fallback, cacheable: false };
     }
   }
 }
@@ -135,16 +150,14 @@ export function getTranslationProvider(): ITranslationProvider {
   return new MockTranslationProvider();
 }
 
-/**
- * Get translation with database caching
- */
 export async function translateWithCache(
   prisma: PrismaClient,
   text: string,
   fromLang: string,
-  toLang: string
+  toLang: string,
+  provider: ITranslationProvider = getTranslationProvider()
 ): Promise<{ text: string; isMachineTranslated: boolean; provider: string }> {
-  if (!text || fromLang === toLang) {
+  if (!text || fromLang === toLang || !isAutoTranslationEnabled()) {
     return { text, isMachineTranslated: false, provider: "ORIGINAL" };
   }
 
@@ -152,38 +165,42 @@ export async function translateWithCache(
   const cacheKey = `${fromLang}_${toLang}_${hash}`;
 
   try {
-    const cached = await prisma.translationCache.findUnique({
-      where: { cacheKey }
-    });
-
-    if (cached) {
-      return { text: cached.translatedText, isMachineTranslated: true, provider: cached.provider };
+    const cached = await prisma.translationCache.findUnique({ where: { cacheKey } });
+    if (cached?.provider === provider.name) {
+      return {
+        text: cached.translatedText,
+        isMachineTranslated: cached.translatedText !== text,
+        provider: cached.provider
+      };
     }
-  } catch (err) {
-    // DB cache failure should not block translation
-    console.warn("Translation cache read failed:", err);
+  } catch (error) {
+    console.warn("Translation cache read failed:", error);
   }
 
-  const provider = getTranslationProvider();
-  const translated = await provider.translateText(text, fromLang, toLang);
-
-  try {
-    await prisma.translationCache.upsert({
-      where: { cacheKey },
-      update: { translatedText: translated },
-      create: {
-        cacheKey,
-        sourceLang: fromLang,
-        targetLang: toLang,
-        originalText: text,
-        translatedText: translated,
-        provider: provider.name
-      }
-    });
-  } catch (err) {
-    console.warn("Translation cache write failed:", err);
+  const outcome = await provider.translateText(text, fromLang, toLang);
+  const isMachineTranslated = outcome.text !== text;
+  if (isMachineTranslated && outcome.cacheable) {
+    try {
+      await prisma.translationCache.upsert({
+        where: { cacheKey },
+        update: { translatedText: outcome.text, provider: outcome.provider },
+        create: {
+          cacheKey,
+          sourceLang: fromLang,
+          targetLang: toLang,
+          originalText: text,
+          translatedText: outcome.text,
+          provider: outcome.provider
+        }
+      });
+    } catch (error) {
+      console.warn("Translation cache write failed:", error);
+    }
   }
 
-  return { text: translated, isMachineTranslated: true, provider: provider.name };
+  return {
+    text: outcome.text,
+    isMachineTranslated,
+    provider: outcome.provider
+  };
 }
-

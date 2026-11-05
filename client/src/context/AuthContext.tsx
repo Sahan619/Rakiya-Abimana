@@ -72,7 +72,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [guestPermissions, setGuestPermissions] = useState<string[]>([]);
-  const { setLocale } = useLanguage();
+  const { setLocaleLocal } = useLanguage();
 
   const refreshUser = useCallback(async () => {
     try {
@@ -80,7 +80,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (res && res.user) {
         setUser(res.user);
         if (res.user.preferredLanguage) {
-          setLocale(res.user.preferredLanguage as any);
+          setLocaleLocal(res.user.preferredLanguage);
         }
       } else {
         setUser(null);
@@ -90,7 +90,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setLoading(false);
     }
-  }, [setLocale]);
+  }, [setLocaleLocal]);
 
   useEffect(() => {
     refreshUser();
@@ -106,7 +106,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const res = await api.post<{ user: User }>("/auth/login", credentials);
     setUser(res.user);
     if (res.user.preferredLanguage) {
-      setLocale(res.user.preferredLanguage as any);
+      setLocaleLocal(res.user.preferredLanguage);
     }
     return res.user;
   };
@@ -115,7 +115,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const res = await api.post<{ user: User }>("/auth/register", data);
     setUser(res.user);
     if (res.user.preferredLanguage) {
-      setLocale(res.user.preferredLanguage as any);
+      setLocaleLocal(res.user.preferredLanguage);
     }
   };
 

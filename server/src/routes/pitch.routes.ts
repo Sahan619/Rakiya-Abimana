@@ -3,7 +3,7 @@ import { PrismaClient, PitchStatus, FundingType } from "@prisma/client";
 import { authenticateToken } from "../middleware/auth.middleware";
 import { requirePermission } from "../middleware/role.middleware";
 import { hasPermission } from "../config/permissions";
-import { translateWithCache } from "../services/translation.service";
+import { detectSourceLanguage, translateWithCache } from "../services/translation.service";
 import { createNotification } from "../services/notification.service";
 import { logAuditAction } from "../services/audit.service";
 
@@ -22,7 +22,7 @@ async function enrichPitchWithTranslation(prismaClient: PrismaClient, pitch: any
     const storyTrans = await translateWithCache(prismaClient, pitch.story, sourceLang, targetLang);
     title = titleTrans.text;
     story = storyTrans.text;
-    isMachineTranslated = true;
+    isMachineTranslated = titleTrans.isMachineTranslated || storyTrans.isMachineTranslated;
   }
 
   return {
@@ -238,6 +238,10 @@ router.post(
           error: "Title, story, district, and funding needed amount are required."
         });
       }
+      const detectedSourceLanguage = detectSourceLanguage(
+        `${title.trim()} ${story.trim()}`,
+        sourceLanguage
+      );
 
       const pitch = await prisma.pitch.create({
         data: {
@@ -249,16 +253,16 @@ router.post(
           fundingNeeded: parseFloat(fundingNeeded),
           fundingType: fundingType as FundingType,
           status: PitchStatus.PENDING_REVIEW,
-          sourceLanguage
+          sourceLanguage: detectedSourceLanguage
         },
         include: { district: true, sector: true }
       });
 
       // Translation pipeline: pre-cache
-      const otherLangs = ["en", "si", "ta"].filter((l) => l !== sourceLanguage);
+      const otherLangs = ["en", "si", "ta"].filter((l) => l !== detectedSourceLanguage);
       for (const tLang of otherLangs) {
-        await translateWithCache(prisma, pitch.title, sourceLanguage, tLang);
-        await translateWithCache(prisma, pitch.story, sourceLanguage, tLang);
+        await translateWithCache(prisma, pitch.title, detectedSourceLanguage, tLang);
+        await translateWithCache(prisma, pitch.story, detectedSourceLanguage, tLang);
       }
 
       await logAuditAction(prisma, {

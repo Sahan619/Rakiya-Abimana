@@ -72,7 +72,9 @@ DATABASE_URL="postgresql://postgres:postgres@localhost:5433/jobs_platform"
 JWT_SECRET="rakiya_abimana_jwt_super_secret_key_2026_lk"
 ENCRYPTION_KEY="0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 MATCH_RADIUS_KM=50
-TRANSLATION_PROVIDER="mock" # Pluggable: "google"
+AUTO_TRANSLATE_ENABLED=true
+TRANSLATION_PROVIDER="mock" # "mock" or "google"
+GOOGLE_TRANSLATE_API_KEY= # Required when TRANSLATION_PROVIDER="google"
 VERIFICATION_HOOK="standard" # Pluggable: "gov_live_stub"
 CLIENT_URL="http://localhost:3000"
 ```
@@ -141,6 +143,8 @@ npm run build:backend
 - Automatic pre-translation of job postings, pitches, and chat messages into reader's language.
 - Database cache (`TranslationCache`) avoids redundant translation calls.
 - "Machine-translated" labels and one-click toggle to view original text.
+- `AUTO_TRANSLATE_ENABLED` defaults to `true`; set it to `false` or `0` to disable translations without removing source-language detection.
+- `TRANSLATION_PROVIDER` defaults to `mock`. The mock provider translates exact dictionary phrases only; set it to `google` and configure `GOOGLE_TRANSLATE_API_KEY` to use Google Translate. Mock fallback results are not cached.
 
 ---
 
@@ -149,6 +153,6 @@ npm run build:backend
 1. **Live Government NIC Registry Check**:
    - `GovernmentLiveVerificationStub` in `server/src/services/nic.service.ts` validates the algorithm and format, while providing an interface stub for future Department of Registration of Persons (DRP) live API integration.
 2. **Google Cloud Translation API**:
-   - Pluggable via setting `TRANSLATION_PROVIDER="google"` and providing `GOOGLE_TRANSLATE_API_KEY` in `server/.env`. Defaults to `MockTranslationProvider`.
+   - Pluggable via setting `TRANSLATION_PROVIDER="google"` and providing `GOOGLE_TRANSLATE_API_KEY` in `server/.env`. Defaults to `MockTranslationProvider`; set `AUTO_TRANSLATE_ENABLED=false` to turn automatic translation off.
 3. **Voice-First Navigation**:
    - Designed for low-literacy users with high-contrast, large touch-target buttons and icons; voice transcription/audio playback endpoints are ready to be integrated as audio modules.

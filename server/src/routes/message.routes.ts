@@ -2,7 +2,7 @@ import { Router, Request, Response } from "express";
 import { PrismaClient, Role } from "@prisma/client";
 import { authenticateToken } from "../middleware/auth.middleware";
 import { requirePermission } from "../middleware/role.middleware";
-import { translateWithCache } from "../services/translation.service";
+import { detectSourceLanguage, translateWithCache } from "../services/translation.service";
 import { createNotification } from "../services/notification.service";
 import { chatPairAllows } from "../config/permissions";
 
@@ -100,6 +100,7 @@ router.get("/conversations", async (req: Request, res: Response) => {
 
         const lastMsg = conv.messages[0] || null;
         let translatedLastMsg = lastMsg?.content;
+        let isLastMessageMachineTranslated = false;
 
         if (lastMsg && lastMsg.originalLanguage !== req.user!.preferredLanguage) {
           const trans = await translateWithCache(
@@ -109,6 +110,7 @@ router.get("/conversations", async (req: Request, res: Response) => {
             req.user!.preferredLanguage
           );
           translatedLastMsg = trans.text;
+          isLastMessageMachineTranslated = trans.isMachineTranslated;
         }
 
         return {
@@ -127,7 +129,8 @@ router.get("/conversations", async (req: Request, res: Response) => {
             lastMessage: lastMsg
               ? {
                   ...lastMsg,
-                  translatedContent: translatedLastMsg
+                  translatedContent: translatedLastMsg,
+                  isMachineTranslated: isLastMessageMachineTranslated
                 }
               : null,
             updatedAt: conv.updatedAt
@@ -305,7 +308,7 @@ router.get("/conversations/:id", async (req: Request, res: Response) => {
             readerLang
           );
           translatedText = trans.text;
-          isTranslated = true;
+          isTranslated = trans.isMachineTranslated;
         }
 
         return {
@@ -339,11 +342,15 @@ router.get("/conversations/:id", async (req: Request, res: Response) => {
 router.post("/conversations/:id", async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { content, sourceLanguage = req.user!.preferredLanguage || "en" } = req.body;
+    const {
+      content,
+      sourceLanguage: preferredSourceLanguage = req.user!.preferredLanguage || "en"
+    } = req.body;
 
     if (!content || !content.trim()) {
       return res.status(400).json({ error: "Message content cannot be empty" });
     }
+    const sourceLanguage = detectSourceLanguage(content, preferredSourceLanguage);
 
     const conv = await prisma.conversation.findUnique({ where: { id } });
     if (!conv) {
