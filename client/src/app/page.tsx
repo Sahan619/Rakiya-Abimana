@@ -12,7 +12,6 @@ import {
   Check,
   GraduationCap,
   HandCoins,
-  Languages,
   MapPin,
   Sparkles,
   Sprout,
@@ -166,10 +165,6 @@ export default function HomePage() {
                 <span className="text-sm font-medium">Start with one opportunity</span><ArrowRight size={17} />
               </div>
             </div>
-            <div className="absolute -bottom-5 -left-4 hidden items-center gap-3 rounded-2xl border border-slate-100 bg-white px-4 py-3 shadow-lg sm:flex">
-              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#f4ead7] text-[#9b7131]"><Languages size={18} /></span>
-              <span className="text-xs font-semibold text-slate-700"></span>
-            </div>
           </div>
         </div>
         <a href="#opportunities" className="mx-auto mb-7 flex w-fit items-center gap-2 text-xs font-semibold text-slate-500 transition hover:text-primary-800">
@@ -294,7 +289,6 @@ export default function HomePage() {
       <section className="py-20 sm:py-24">
         <div className="page-width grid items-center gap-10 lg:grid-cols-[.8fr_1.2fr]">
           <div>
-            <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#f5efe2] text-[#9b7131]"><Languages size={23} /></span>
             <p className="mt-6 text-xs font-bold uppercase tracking-[.18em] text-primary-700">{t("home.languageEyebrow", "Designed for many voices")}</p>
             <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">{t("home.languageTitle", "Opportunities in your language.")}</h2>
             <p className="mt-4 text-sm leading-7 text-slate-600 sm:text-base">{t("home.languageDescription", "Choose English, Sinhala, or Tamil as you explore. The platform’s translation support helps make job posts and conversations more accessible across languages.")}</p>
