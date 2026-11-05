@@ -70,6 +70,8 @@ export function Navbar() {
       { href: "/jobs/my", label: "My job listings" }
     ] : []),
     ...(isEntrepreneur ? [
+      { href: "/jobs/post", label: t("nav.postJob", "Post a job") },
+      { href: "/jobs/my", label: "Manage my jobs" },
       { href: "/pitches/create", label: t("nav.createPitch", "Create a proposal") },
       { href: "/pitches/my", label: "My proposals" }
     ] : []),

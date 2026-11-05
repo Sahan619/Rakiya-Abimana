@@ -279,7 +279,7 @@ router.get("/:id", optionalAuth, async (req: Request, res: Response) => {
 router.post(
   "/",
   authenticateToken,
-  requireRoles(Role.Employer, Role.Admin),
+  requireRoles(Role.Employer, Role.Entrepreneur, Role.Admin),
   requireVerified,
   async (req: Request, res: Response) => {
     try {
@@ -358,10 +358,17 @@ router.post(
 );
 
 // PUT /api/jobs/:id - Edit job
-router.put("/:id", authenticateToken, async (req: Request, res: Response) => {
+router.put(
+  "/:id",
+  authenticateToken,
+  requireRoles(Role.Employer, Role.Entrepreneur, Role.Admin),
+  async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const existing = await prisma.job.findUnique({ where: { id } });
+    const existing = await prisma.job.findUnique({
+      where: { id },
+      include: { district: true }
+    });
 
     if (!existing) {
       return res.status(404).json({ error: "Job not found" });
@@ -374,26 +381,113 @@ router.put("/:id", authenticateToken, async (req: Request, res: Response) => {
 
     const { title, category, districtId, wage, wageType, description } = req.body;
 
+    // Validate title if supplied
+    if (title !== undefined) {
+      if (typeof title !== "string" || title.trim().length < 3) {
+        return res.status(400).json({ error: "Job title must be at least 3 characters long." });
+      }
+    }
+
+    // Validate category if supplied
+    if (category !== undefined) {
+      if (typeof category !== "string" || !category.trim()) {
+        return res.status(400).json({ error: "Job category cannot be empty." });
+      }
+    }
+
+    // Validate district if supplied
+    let newLat: number | undefined = undefined;
+    let newLng: number | undefined = undefined;
+    if (districtId !== undefined) {
+      const dist = SRI_LANKA_DISTRICTS.find((d) => d.id === districtId);
+      if (!dist) {
+        return res.status(400).json({ error: "Invalid district selected." });
+      }
+      newLat = dist.lat;
+      newLng = dist.lng;
+    }
+
+    // Validate wage if supplied
+    let parsedWage: number | undefined = undefined;
+    if (wage !== undefined) {
+      parsedWage = typeof wage === "number" ? wage : parseFloat(String(wage));
+      if (!Number.isFinite(parsedWage) || parsedWage < 0) {
+        return res.status(400).json({ error: "Offered wage must be a non-negative number." });
+      }
+    }
+
+    // Validate wageType if supplied
+    const validWageTypes = ["MONTHLY", "DAILY", "PIECE_RATE", "HOURLY"];
+    if (wageType !== undefined && !validWageTypes.includes(wageType)) {
+      return res.status(400).json({ error: "Wage basis must be MONTHLY, DAILY, PIECE_RATE, or HOURLY." });
+    }
+
+    // Validate description if supplied
+    if (description !== undefined) {
+      if (typeof description !== "string" || description.trim().length < 10) {
+        return res.status(400).json({ error: "Job description must be at least 10 characters long." });
+      }
+    }
+
     const updated = await prisma.job.update({
       where: { id },
       data: {
         title: title ? title.trim() : undefined,
         category: category || undefined,
         districtId: districtId || undefined,
-        wage: wage !== undefined ? parseFloat(wage) : undefined,
+        lat: newLat !== undefined ? newLat : undefined,
+        lng: newLng !== undefined ? newLng : undefined,
+        wage: parsedWage !== undefined ? parsedWage : undefined,
         wageType: wageType || undefined,
         description: description ? description.trim() : undefined
+      },
+      include: {
+        district: true
+      }
+    });
+
+    // Translation Pipeline: Update pre-cached translations if title or description changed
+    const titleChanged = title && title.trim() !== existing.title;
+    const descChanged = description && description.trim() !== existing.description;
+    if (titleChanged || descChanged) {
+      const sourceLang = existing.sourceLanguage || "en";
+      const targetLangs = ["en", "si", "ta"].filter((l) => l !== sourceLang);
+      for (const tLang of targetLangs) {
+        if (titleChanged) {
+          await translateWithCache(prisma, updated.title, sourceLang, tLang);
+        }
+        if (descChanged) {
+          await translateWithCache(prisma, updated.description, sourceLang, tLang);
+        }
+      }
+    }
+
+    await logAuditAction(prisma, {
+      action: "JOB_UPDATED",
+      actorId: req.user!.id,
+      targetType: "Job",
+      targetId: updated.id,
+      details: {
+        title: updated.title,
+        districtId: updated.districtId,
+        wage: updated.wage
       }
     });
 
     return res.json({ message: "Job updated successfully", job: updated });
   } catch (err) {
+    console.error("Job update error:", err);
     return res.status(500).json({ error: "Failed to update job" });
   }
-});
+  }
+);
 
 // PATCH /api/jobs/:id/status - Close or reopen job
-router.patch("/:id/status", authenticateToken, async (req: Request, res: Response) => {
+router.patch(
+  "/:id/status",
+  authenticateToken,
+  requireRoles(Role.Employer, Role.Entrepreneur, Role.Admin),
+  async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { status } = req.body;
@@ -421,10 +515,15 @@ router.patch("/:id/status", authenticateToken, async (req: Request, res: Respons
   } catch (err) {
     return res.status(500).json({ error: "Failed to update job status" });
   }
-});
+  }
+);
 
 // POST /api/jobs/:id/apply - Apply for job
-router.post("/:id/apply", authenticateToken, async (req: Request, res: Response) => {
+router.post(
+  "/:id/apply",
+  authenticateToken,
+  requireRoles(Role.JobSeeker),
+  async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { notes } = req.body;
@@ -434,7 +533,11 @@ router.post("/:id/apply", authenticateToken, async (req: Request, res: Response)
       include: { employer: true }
     });
 
-    if (!job || job.status !== JobStatus.OPEN) {
+    if (!job) {
+      return res.status(404).json({ error: "Job posting not found" });
+    }
+
+    if (job.status !== JobStatus.OPEN) {
       return res.status(400).json({ error: "This job is not currently open for applications." });
     }
 
@@ -481,10 +584,15 @@ router.post("/:id/apply", authenticateToken, async (req: Request, res: Response)
     console.error("Apply error:", err);
     return res.status(500).json({ error: "Failed to submit application" });
   }
-});
+  }
+);
 
 // GET /api/jobs/my/applications - Job seeker view own applications
-router.get("/my/applications", authenticateToken, async (req: Request, res: Response) => {
+router.get(
+  "/my/applications",
+  authenticateToken,
+  requireRoles(Role.JobSeeker),
+  async (req: Request, res: Response) => {
   try {
     const applications = await prisma.jobApplication.findMany({
       where: { applicantId: req.user!.id },
@@ -509,10 +617,11 @@ router.get("/my/applications", authenticateToken, async (req: Request, res: Resp
   } catch (err) {
     return res.status(500).json({ error: "Failed to fetch your applications" });
   }
-});
+  }
+);
 
-// GET /api/jobs/my/posted - Employer view own posted jobs
-router.get("/my/posted", authenticateToken, async (req: Request, res: Response) => {
+// GET /api/jobs/my/posted & GET /api/jobs/my - View own posted jobs (Entrepreneur & Employer)
+const getMyJobsHandler = async (req: Request, res: Response) => {
   try {
     const jobs = await prisma.job.findMany({
       where: { employerId: req.user!.id },
@@ -523,14 +632,31 @@ router.get("/my/posted", authenticateToken, async (req: Request, res: Response) 
       orderBy: { createdAt: "desc" }
     });
 
-    return res.json({ jobs });
+    return res.json({ jobs, total: jobs.length });
   } catch (err) {
     return res.status(500).json({ error: "Failed to fetch your posted jobs" });
   }
-});
+};
+
+router.get(
+  "/my/posted",
+  authenticateToken,
+  requireRoles(Role.Employer, Role.Entrepreneur, Role.Admin),
+  getMyJobsHandler
+);
+router.get(
+  "/my",
+  authenticateToken,
+  requireRoles(Role.Employer, Role.Entrepreneur, Role.Admin),
+  getMyJobsHandler
+);
 
 // GET /api/jobs/:id/applicants - Employer views applicants
-router.get("/:id/applicants", authenticateToken, async (req: Request, res: Response) => {
+router.get(
+  "/:id/applicants",
+  authenticateToken,
+  requireRoles(Role.Employer, Role.Entrepreneur, Role.Admin),
+  async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { districtId, skills, category } = req.query;
@@ -583,7 +709,8 @@ router.get("/:id/applicants", authenticateToken, async (req: Request, res: Respo
   } catch (err) {
     return res.status(500).json({ error: "Failed to fetch applicants" });
   }
-});
+  }
+);
 
 // PATCH /api/jobs/applications/:appId/status - Employer updates applicant status
 router.patch("/applications/:appId/status", authenticateToken, async (req: Request, res: Response) => {

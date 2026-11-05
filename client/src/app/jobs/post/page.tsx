@@ -9,7 +9,7 @@ import { useLanguage } from "../../../context/LanguageContext";
 import { api } from "../../../lib/api";
 
 export default function PostJobPage() {
-  const { user, isEmployer } = useAuth();
+  const { user, isEmployer, isEntrepreneur, isAdmin } = useAuth();
   const { t, locale } = useLanguage();
   const router = useRouter();
 
@@ -74,6 +74,27 @@ export default function PostJobPage() {
     );
   }
 
+  // Role Authorization Check
+  if (!isEmployer && !isEntrepreneur && !isAdmin) {
+    return (
+      <div className="max-w-xl mx-auto my-8 bg-white border border-slate-200 rounded-2xl p-6 sm:p-8 shadow-sm text-center space-y-4">
+        <div className="w-14 h-14 bg-slate-100 text-slate-700 rounded-2xl flex items-center justify-center mx-auto">
+          <Briefcase size={32} />
+        </div>
+        <h1 className="text-xl font-bold text-gray-900">Employer or Entrepreneur Role Required</h1>
+        <p className="text-xs sm:text-sm text-gray-600 leading-relaxed">
+          Job postings are reserved for registered Employers and Entrepreneurs hiring personnel for business activities. If you need to hire, you can update your roles or create an employer account.
+        </p>
+        <Link
+          href="/profile"
+          className="inline-block bg-primary-700 hover:bg-primary-800 text-white font-bold text-sm px-6 py-3 rounded-xl shadow transition"
+        >
+          Manage Profile & Roles
+        </Link>
+      </div>
+    );
+  }
+
   // Verification Gate Check
   if (!user.isVerified) {
     return (
@@ -83,7 +104,7 @@ export default function PostJobPage() {
         </div>
         <h1 className="text-xl font-bold text-gray-900">Verification Required to Post Jobs</h1>
         <p className="text-xs sm:text-sm text-gray-600 leading-relaxed">
-          To protect Sri Lankan job seekers against scams and wage theft, only verified employers with confirmed NIC and residence/business proof may publish vacancies.
+          To protect Sri Lankan job seekers against scams and wage theft, only verified employers and entrepreneurs with confirmed NIC and residence/business proof may publish vacancies.
         </p>
         <Link
           href="/verification"
