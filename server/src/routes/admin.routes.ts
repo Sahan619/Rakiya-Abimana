@@ -201,9 +201,23 @@ router.post("/users/:id/roles", requirePermission("user:manage"), async (req: Re
       if (!assignedRoles.includes(role)) assignedRoles.push(role);
     }
 
-    await prisma.userRole.deleteMany({ where: { userId: id } });
-    await prisma.userRole.createMany({
-      data: assignedRoles.map((role) => ({ userId: id, role }))
+    const target = await prisma.user.findUnique({
+      where: { id },
+      select: { id: true }
+    });
+    if (!target) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    if (id === req.user!.id && !assignedRoles.includes(Role.Admin)) {
+      return res.status(400).json({ error: "Administrators cannot remove their own Admin role." });
+    }
+
+    await prisma.$transaction(async (transaction) => {
+      await transaction.userRole.deleteMany({ where: { userId: id } });
+      await transaction.userRole.createMany({
+        data: assignedRoles.map((role) => ({ userId: id, role }))
+      });
     });
 
     await logAuditAction(prisma, {
