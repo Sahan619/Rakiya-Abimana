@@ -8,6 +8,7 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "test:permissions": "ts-node src/config/permissions.test.ts",
+    "test:funders": "ts-node src/services/funder-directory.test.ts",
     "prisma:generate": "prisma generate",
     "prisma:push": "prisma db push",
     "seed": "ts-node prisma/seed.ts"

@@ -175,6 +175,7 @@ router.post(
       select: {
         isActive: true,
         isVerified: true,
+        funderProfile: { select: { listedInDirectory: true } },
         roles: { select: { role: true } }
       }
     });
@@ -189,6 +190,7 @@ router.post(
         !req.user!.roles.includes(Role.Entrepreneur) ||
         !recipient.roles.some((role) => role.role === Role.Funder) ||
         !recipient.isVerified ||
+        !recipient.funderProfile?.listedInDirectory ||
         referenceId !== recipientId
       )
     ) {

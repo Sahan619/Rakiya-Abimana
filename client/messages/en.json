@@ -36,6 +36,7 @@
     "jobs": "Jobs",
     "nearbyJobs": "Nearby Jobs",
     "pitches": "Micro-Business Funding",
+    "funders": "Funder Directory",
     "postJob": "Post Job",
     "createPitch": "Start Pitch",
     "myApplications": "My Applications",
@@ -168,5 +169,33 @@
     "typeMessage": "Type a message in your language...",
     "send": "Send",
     "autoTranslateNotice": "Messages are automatically translated into your preferred language with the original message shown beside it."
+  },
+  "funders": {
+    "title": "Funder Directory",
+    "description": "Discover verified funders who have chosen to be listed.",
+    "district": "Focus district",
+    "sector": "Focus sector",
+    "funderType": "Funder type",
+    "all": "All",
+    "contact": "Contact",
+    "bio": "Funding interests",
+    "empty": "No funders match these filters.",
+    "previous": "Previous",
+    "next": "Next",
+    "page": "Page",
+    "accessDenied": "The funder directory is not available to this account.",
+    "districts": "Focus districts",
+    "sectors": "Focus sectors",
+    "notSpecified": "Not specified",
+    "listMe": "List me in the funder directory",
+    "listingNote": "Only active, verified funders are shown in directory results.",
+    "listingUpdated": "Directory listing preference updated.",
+    "types": {
+      "CSR business": "CSR business",
+      "diaspora donor": "Diaspora donor",
+      "registered MFI": "Registered MFI",
+      "angel donor": "Angel donor",
+      "NGO": "Non-governmental organization"
+    }
   }
 }

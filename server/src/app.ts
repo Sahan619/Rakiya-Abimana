@@ -16,6 +16,7 @@ import messageRoutes from "./routes/message.routes";
 import notificationRoutes from "./routes/notification.routes";
 import adminRoutes from "./routes/admin.routes";
 import masterRoutes from "./routes/master.routes";
+import funderRoutes from "./routes/funders.routes";
 import { authenticateToken } from "./middleware/auth.middleware";
 import { hasPermission } from "./config/permissions";
 
@@ -108,6 +109,7 @@ app.use("/api/messages", messageRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/master", masterRoutes);
+app.use("/api/funders", funderRoutes);
 
 // Global error handler
 app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {

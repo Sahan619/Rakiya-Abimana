@@ -151,6 +151,7 @@ model FunderProfile {
   fundingInterests String?
   focusDistricts   String? // comma-separated district IDs
   focusSectors     String? // comma-separated sector IDs
+  listedInDirectory Boolean  @default(false)
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 }

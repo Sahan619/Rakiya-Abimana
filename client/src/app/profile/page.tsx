@@ -89,6 +89,8 @@ export default function ProfilePage() {
   const [funderType, setFunderType] = useState("CSR business");
   const [funderDistricts, setFunderDistricts] = useState("");
   const [funderSectors, setFunderSectors] = useState("");
+  const [funderListed, setFunderListed] = useState(false);
+  const [savingFunderListing, setSavingFunderListing] = useState(false);
 
   // Password change fields
   const [currentPassword, setCurrentPassword] = useState("");
@@ -156,9 +158,28 @@ export default function ProfilePage() {
         setFunderInterests(user.funderProfile.fundingInterests || "");
         setFunderDistricts(user.funderProfile.focusDistricts || "");
         setFunderSectors(user.funderProfile.focusSectors || "");
+        setFunderListed(Boolean(user.funderProfile.listedInDirectory));
       }
     }
   }, [user]);
+
+  const updateFunderListing = async (listedInDirectory: boolean) => {
+    setSavingFunderListing(true);
+    setError(null);
+    setMessage(null);
+    try {
+      const response = await api.put<{ listedInDirectory: boolean }>("/funders/me/listing", {
+        listedInDirectory
+      });
+      setFunderListed(response.listedInDirectory);
+      await refreshUser();
+      setMessage(t("funders.listingUpdated", "Directory listing preference updated."));
+    } catch (listingError) {
+      setError(listingError instanceof Error ? listingError.message : "Failed to update directory listing.");
+    } finally {
+      setSavingFunderListing(false);
+    }
+  };
 
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -754,6 +775,25 @@ export default function ProfilePage() {
                 <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Funding Interests</label>
                 <textarea rows={3} value={funderInterests} onChange={(e) => setFunderInterests(e.target.value)} className="w-full rounded-xl border border-slate-200 bg-white p-3 text-sm text-slate-900 outline-none transition focus:border-primary-500 focus:ring-4 focus:ring-primary-100" />
               </div>
+              {can("funder:manage_listing") && (
+                <div className="sm:col-span-2 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <label className="flex items-start gap-3 text-sm font-semibold text-slate-800">
+                    <input
+                      type="checkbox"
+                      checked={funderListed}
+                      disabled={savingFunderListing}
+                      onChange={(event) => updateFunderListing(event.target.checked)}
+                      className="mt-1 h-4 w-4 accent-primary-700"
+                    />
+                    <span>
+                      {t("funders.listMe", "List me in the funder directory")}
+                      <span className="mt-1 block text-xs font-normal text-slate-500">
+                        {t("funders.listingNote", "Only active, verified funders are shown in directory results.")}
+                      </span>
+                    </span>
+                  </label>
+                </div>
+              )}
             </div>
           </section>
         )}
