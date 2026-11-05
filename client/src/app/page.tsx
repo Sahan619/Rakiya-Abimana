@@ -1,5 +1,6 @@
 "use client";
 
+
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import {
@@ -96,7 +97,7 @@ export default function HomePage() {
   };
 
   return (
-    <div className="-mx-4 -mt-8 space-y-0 overflow-hidden bg-[#f8faf8] sm:-mx-6 lg:-mx-8">
+    <div className="home-page -mx-4 -mt-8 space-y-0 overflow-hidden bg-[#f8faf8]">
       <section className="relative isolate overflow-hidden bg-[#f3f6f1]">
         <div className="absolute -right-32 -top-40 -z-10 h-[34rem] w-[34rem] rounded-full border-[1px] border-[#174b35]/10" />
         <div className="absolute -right-20 -top-28 -z-10 h-[28rem] w-[28rem] rounded-full border-[1px] border-[#174b35]/10" />

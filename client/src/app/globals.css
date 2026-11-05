@@ -70,3 +70,88 @@ button, a, input, select, textarea {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* =========================================
+   Rakiya Abimana - Homepage Scroll Animations
+   Visual styling remains unchanged.
+========================================= */
+
+/* Main section reveal */
+@supports (animation-timeline: view()) {
+  .home-page > section .page-width {
+    animation: section-reveal 750ms ease both;
+    animation-timeline: view();
+    animation-range: entry 0% entry 30%;
+  }
+
+  /* Opportunity cards */
+  .home-page #opportunities .surface-card {
+    animation: card-reveal 650ms ease both;
+    animation-timeline: view();
+    animation-range: entry 0% entry 35%;
+  }
+
+  .home-page #opportunities .surface-card:nth-child(2) {
+    animation-delay: 80ms;
+  }
+
+  .home-page #opportunities .surface-card:nth-child(3) {
+    animation-delay: 150ms;
+  }
+
+  /* How it works steps */
+  .home-page ol li {
+    animation: card-reveal 650ms ease both;
+    animation-timeline: view();
+    animation-range: entry 0% entry 40%;
+  }
+
+  /* Featured job cards */
+  .home-page article.surface-card {
+    animation: card-reveal 650ms ease both;
+    animation-timeline: view();
+    animation-range: entry 0% entry 35%;
+  }
+
+  /* Language cards */
+  .home-page .surface-card {
+    animation: card-reveal 650ms ease both;
+    animation-timeline: view();
+    animation-range: entry 0% entry 35%;
+  }
+}
+
+@keyframes section-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(35px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes card-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(28px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Accessibility */
+@media (prefers-reduced-motion: reduce) {
+  .home-page *,
+  .home-page *::before,
+  .home-page *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
