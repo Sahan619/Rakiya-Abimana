@@ -18,15 +18,16 @@ import {
   UsersRound
 } from "lucide-react";
 import { useLanguage } from "../context/LanguageContext";
+import { useAuth } from "../context/AuthContext";
 import { api } from "../lib/api";
 import { VerifiedBadge } from "../components/VerifiedBadge";
 
 interface FeaturedJob {
   id: string;
   title: string;
-  category: string;
+  category?: string;
   wage: number;
-  wageType: string;
+  wageType?: string;
   createdAt: string;
   guestRestricted?: boolean;
   employer?: { companyName?: string; isVerified?: boolean };
@@ -52,11 +53,18 @@ const steps = [
 
 export default function HomePage() {
   const { t, locale } = useLanguage();
+  const { user, can } = useAuth();
   const [jobs, setJobs] = useState<FeaturedJob[]>([]);
   const [jobsLoading, setJobsLoading] = useState(true);
   const [jobsError, setJobsError] = useState("");
 
   useEffect(() => {
+    if (!can("job:list_public")) {
+      setJobs([]);
+      setJobsLoading(false);
+      return;
+    }
+
     let active = true;
     setJobsLoading(true);
     setJobsError("");
@@ -73,7 +81,13 @@ export default function HomePage() {
       });
 
     return () => { active = false; };
-  }, [locale]);
+  }, [can, locale]);
+
+  const visibleOpportunities = opportunities.filter(({ href }) =>
+    (href !== "/jobs" || can("job:list_public")) &&
+    (href !== "/nearby" || can("job:nearby")) &&
+    (href !== "/jobs/post" || !user || can("job:create"))
+  );
 
   const districtName = (job: FeaturedJob) => {
     if (locale === "si") return job.district?.nameSi || job.district?.nameEn || "Sri Lanka";
@@ -99,9 +113,9 @@ export default function HomePage() {
               {t("home.heroDescription", "Discover meaningful work, connect with skilled people, and explore ways to grow a small business—all in one place.")}
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <Link href="/jobs" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-primary-700 px-5 text-sm font-semibold text-white shadow-lg shadow-primary-900/10 transition hover:-translate-y-0.5 hover:bg-primary-800">
+              {can("job:list_public") && <Link href="/jobs" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-primary-700 px-5 text-sm font-semibold text-white shadow-lg shadow-primary-900/10 transition hover:-translate-y-0.5 hover:bg-primary-800">
                 {t("home.exploreJobs", "Explore jobs")}<ArrowRight size={17} />
-              </Link>
+              </Link>}
               <Link href="/pitches" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-5 text-sm font-semibold text-slate-800 transition hover:-translate-y-0.5 hover:border-primary-300 hover:bg-primary-50">
                 {t("home.exploreFunding", "Explore funding")}<ArrowUpRight size={16} />
               </Link>
@@ -170,8 +184,8 @@ export default function HomePage() {
             <p className="mt-4 text-sm leading-6 text-slate-600 sm:text-base">{t("home.opportunitiesDescription", "Whether you are looking for work, building a team, or growing a business, find a starting point here.")}</p>
           </div>
           <div className="mt-11 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {opportunities.map(({ icon: Icon, title, titleKey, text, textKey, href, tint }, index) => (
-              <Link key={title} href={href} className={`surface-card group reveal p-6 transition duration-200 hover:-translate-y-1 hover:border-primary-200 hover:shadow-[0_16px_40px_rgb(23_75_53/9%)] ${index > 2 ? "delay-1" : ""}`}>
+            {visibleOpportunities.map(({ icon: Icon, title, titleKey, text, textKey, href, tint }, index) => (
+              <Link key={title} href={href === "/jobs/post" && !user ? "/register" : href} className={`surface-card group reveal p-6 transition duration-200 hover:-translate-y-1 hover:border-primary-200 hover:shadow-[0_16px_40px_rgb(23_75_53/9%)] ${index > 2 ? "delay-1" : ""}`}>
                 <span className={`flex h-12 w-12 items-center justify-center rounded-2xl ${tint}`}><Icon size={22} /></span>
                 <h3 className="mt-5 text-lg font-semibold text-slate-900">{t(titleKey, title)}</h3>
                 <p className="mt-2 text-sm leading-6 text-slate-600">{t(textKey, text)}</p>
@@ -204,7 +218,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="py-20 sm:py-24">
+      {can("job:list_public") && <section className="py-20 sm:py-24">
         <div className="page-width">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div>
@@ -233,23 +247,23 @@ export default function HomePage() {
                 <article key={job.id} className={`surface-card reveal flex flex-col p-5 transition duration-200 hover:-translate-y-1 hover:shadow-[0_16px_40px_rgb(23_75_53/9%)] ${index === 1 ? "delay-1" : index === 2 ? "delay-2" : ""}`}>
                   <div className="flex items-start justify-between gap-3">
                     <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary-50 text-primary-700"><Building2 size={20} /></span>
-                    <VerifiedBadge isVerified={job.employer?.isVerified} size="sm" />
+                    {!job.guestRestricted && <VerifiedBadge isVerified={job.employer?.isVerified} size="sm" />}
                   </div>
-                  <span className="mt-5 text-[11px] font-bold uppercase tracking-wide text-primary-700">{job.category}</span>
+                  {!job.guestRestricted && <span className="mt-5 text-[11px] font-bold uppercase tracking-wide text-primary-700">{job.category}</span>}
                   <h3 className="mt-1 text-lg font-semibold leading-snug text-slate-900">{job.title}</h3>
-                  <p className="mt-2 text-sm text-slate-500">{job.employer?.companyName || "Employer"} · {districtName(job)}</p>
+                  <p className="mt-2 text-sm text-slate-500">{!job.guestRestricted && `${job.employer?.companyName || "Employer"} · `}{districtName(job)}</p>
                   <div className="mt-5 flex items-center justify-between border-t border-slate-100 pt-4">
-                    <p className="text-sm font-semibold text-slate-900">LKR {job.wage?.toLocaleString()} <span className="font-normal text-slate-500">/ {job.wageType?.toLowerCase()}</span></p>
-                    <Link href={job.guestRestricted ? "/login" : `/jobs/${job.id}`} className="inline-flex items-center gap-1 text-sm font-semibold text-primary-800 hover:text-primary-600">
+                    <p className="text-sm font-semibold text-slate-900">LKR {job.wage?.toLocaleString()} {!job.guestRestricted && job.wageType && <span className="font-normal text-slate-500">/ {job.wageType.toLowerCase()}</span>}</p>
+                    {job.guestRestricted ? <span className="text-xs text-slate-500">Limited public listing</span> : <Link href={`/jobs/${job.id}`} className="inline-flex items-center gap-1 text-sm font-semibold text-primary-800 hover:text-primary-600">
                       View role<ArrowRight size={15} />
-                    </Link>
+                    </Link>}
                   </div>
                 </article>
               ))}
             </div>
           )}
         </div>
-      </section>
+      </section>}
 
       <section className="bg-[#173e2e] py-20 text-white sm:py-24">
         <div className="page-width grid items-center gap-10 lg:grid-cols-[1fr_.85fr]">
@@ -304,7 +318,7 @@ export default function HomePage() {
               <p className="mt-4 max-w-xl text-sm leading-6 text-slate-700">{t("home.finalDescription", "Explore jobs, share your experience, or take the first step towards building a business.")}</p>
             </div>
             <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
-              <Link href="/jobs" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-primary-700 px-5 text-sm font-semibold text-white transition hover:bg-primary-800">{t("home.findJobs", "Find jobs")}<ArrowRight size={16} /></Link>
+              {can("job:list_public") && <Link href="/jobs" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-primary-700 px-5 text-sm font-semibold text-white transition hover:bg-primary-800">{t("home.findJobs", "Find jobs")}<ArrowRight size={16} /></Link>}
               <Link href="/register" className="inline-flex min-h-12 items-center justify-center rounded-xl border border-[#c7b58e] bg-white/70 px-5 text-sm font-semibold text-slate-800 transition hover:bg-white">{t("home.getStarted", "Get started")}</Link>
             </div>
           </div>

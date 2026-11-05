@@ -10,6 +10,7 @@ import {
   ChevronDown,
   CircleUserRound,
   Compass,
+  HandCoins,
   Leaf,
   LogOut,
   MapPin,
@@ -36,6 +37,7 @@ type NavItem = {
 const NAV_ITEMS: NavItem[] = [
   { href: "/jobs", labelKey: "nav.jobs", fallbackLabel: "Find jobs", permission: "job:list_public", section: "primary", icon: BriefcaseBusiness },
   { href: "/pitches", labelKey: "nav.pitches", fallbackLabel: "Funding", permission: "pitch:browse_approved", section: "primary", icon: Leaf },
+  { href: "/funders", labelKey: "nav.funders", fallbackLabel: "Funder directory", permission: "funder:browse", section: "primary", icon: HandCoins },
   { href: "/nearby", labelKey: "nav.nearbyJobs", fallbackLabel: "Nearby", permission: "job:nearby", section: "primary", icon: MapPin },
   { href: "/jobs/applications", labelKey: "nav.myApplications", fallbackLabel: "My applications", permission: "application:view_own", section: "workspace", icon: Compass },
   { href: "/jobs/post", labelKey: "nav.postJob", fallbackLabel: "Post a job", permission: "job:create", section: "workspace", icon: Compass },

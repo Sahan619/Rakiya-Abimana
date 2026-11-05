@@ -41,10 +41,10 @@ interface JobListing {
   originalTitle?: string;
   description?: string;
   originalDescription?: string;
-  category: string;
+  category?: string;
   wage: number;
-  wageType: string;
-  createdAt: string;
+  wageType?: string;
+  createdAt?: string;
   sourceLanguage?: string;
   isMachineTranslated?: boolean;
   guestRestricted?: boolean;
@@ -62,7 +62,7 @@ interface JobFilters {
 const EMPTY_FILTERS: JobFilters = { search: "", district: "", category: "", minimumWage: "" };
 
 export default function JobsPage() {
-  const { user, can } = useAuth();
+  const { user, can, loading: authLoading } = useAuth();
   const { t, locale } = useLanguage();
   const [jobs, setJobs] = useState<JobListing[]>([]);
   const [districts, setDistricts] = useState<District[]>([]);
@@ -93,6 +93,11 @@ export default function JobsPage() {
   }, []);
 
   useEffect(() => {
+    if (!can("job:list_public")) {
+      setLoading(false);
+      return;
+    }
+
     let active = true;
     const query = new URLSearchParams({ lang: locale });
     if (appliedFilters.search.trim()) query.set("search", appliedFilters.search.trim());
@@ -115,7 +120,7 @@ export default function JobsPage() {
       });
 
     return () => { active = false; };
-  }, [appliedFilters, locale, reloadCount]);
+  }, [appliedFilters, can, locale, reloadCount]);
 
   const submitFilters = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -141,6 +146,18 @@ export default function JobsPage() {
     if (locale === "ta") return category.nameTa || category.nameEn;
     return category.nameEn;
   };
+
+  if (authLoading) {
+    return <div className="text-center py-12 font-medium text-slate-500">Checking access...</div>;
+  }
+
+  if (!can("job:list_public")) {
+    return (
+      <div className="max-w-md mx-auto text-center py-12 bg-white rounded-2xl border border-gray-200 p-6">
+        <p className="font-bold text-gray-700">Job listings are not available to this account.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
@@ -238,28 +255,28 @@ export default function JobsPage() {
                     <div className="flex min-w-0 items-start gap-3">
                       <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary-50 text-primary-700"><Building2 size={20} /></span>
                       <div className="min-w-0">
-                        <p className="text-xs font-semibold text-slate-500">{job.employer?.companyName || "Employer"}</p>
+                        {!job.guestRestricted && <p className="text-xs font-semibold text-slate-500">{job.employer?.companyName || "Employer"}</p>}
                         <h3 className="mt-1 text-lg font-semibold leading-snug text-slate-900">{isOriginal ? job.originalTitle || job.title : job.title}</h3>
                       </div>
                     </div>
-                    <VerifiedBadge isVerified={job.employer?.isVerified} size="sm" />
+                    {!job.guestRestricted && <VerifiedBadge isVerified={job.employer?.isVerified} size="sm" />}
                   </div>
 
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    <span className="rounded-full bg-primary-50 px-3 py-1 text-xs font-semibold text-primary-800">{getCategoryName(job.category)}</span>
+                  {!job.guestRestricted && <div className="mt-4 flex flex-wrap gap-2">
+                    <span className="rounded-full bg-primary-50 px-3 py-1 text-xs font-semibold text-primary-800">{getCategoryName(job.category || "")}</span>
                     {job.wageType && <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">{job.wageType.replace(/_/g, " ")}</span>}
-                  </div>
+                  </div>}
 
-                  <MachineTranslationNotice isMachineTranslated={!!job.isMachineTranslated} showOriginal={isOriginal} onToggle={() => setShowOriginalMap((previous) => ({ ...previous, [job.id]: !previous[job.id] }))} sourceLanguage={job.sourceLanguage} />
+                  {!job.guestRestricted && <MachineTranslationNotice isMachineTranslated={!!job.isMachineTranslated} showOriginal={isOriginal} onToggle={() => setShowOriginalMap((previous) => ({ ...previous, [job.id]: !previous[job.id] }))} sourceLanguage={job.sourceLanguage} />}
                   <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-sm text-slate-600">
                     <span className="inline-flex items-center gap-1.5"><MapPin size={15} className="text-slate-400" />{getDistrictName(job.district)}</span>
-                    <span className="inline-flex items-center gap-1.5 font-semibold text-slate-900"><Wallet size={15} className="text-primary-700" />LKR {job.wage?.toLocaleString()} <span className="font-normal text-slate-500">/ {job.wageType?.toLowerCase()}</span></span>
+                    <span className="inline-flex items-center gap-1.5 font-semibold text-slate-900"><Wallet size={15} className="text-primary-700" />LKR {job.wage?.toLocaleString()} {!job.guestRestricted && job.wageType && <span className="font-normal text-slate-500">/ {job.wageType.toLowerCase()}</span>}</span>
                   </div>
-                  {(isOriginal ? job.originalDescription || job.description : job.description) && (
+                  {!job.guestRestricted && (isOriginal ? job.originalDescription || job.description : job.description) && (
                     <p className="mt-4 line-clamp-3 text-sm leading-6 text-slate-600">{isOriginal ? job.originalDescription || job.description : job.description}</p>
                   )}
                   <div className="mt-auto flex items-center justify-between gap-3 border-t border-slate-100 pt-4">
-                    <span className="text-xs text-slate-400">{new Date(job.createdAt).toLocaleDateString(locale)}</span>
+                    {!job.guestRestricted && job.createdAt && <span className="text-xs text-slate-400">{new Date(job.createdAt).toLocaleDateString(locale)}</span>}
                     {user && can("job:manage_own") && user.id === job.employer?.id ? (
                       <Link
                         href="/jobs/my"
@@ -295,13 +312,23 @@ export default function JobsPage() {
         )}
       </section>
 
-      <section className="flex flex-col items-start justify-between gap-4 rounded-2xl bg-[#f1eadb] p-5 sm:flex-row sm:items-center sm:p-6">
-        <div>
-          <p className="font-semibold text-slate-900">Hiring for your team?</p>
-          <p className="mt-1 text-sm text-slate-600">Share an opening and reach people looking for their next role.</p>
-        </div>
-        <Link href={can("job:create") ? "/jobs/post" : "/register"} className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-[#c7b58e] bg-white/70 px-4 text-sm font-semibold text-slate-800 transition hover:bg-white">Post a job<Check size={15} /></Link>
-      </section>
+      {can("job:create") ? (
+        <section className="flex flex-col items-start justify-between gap-4 rounded-2xl bg-[#f1eadb] p-5 sm:flex-row sm:items-center sm:p-6">
+          <div>
+            <p className="font-semibold text-slate-900">Hiring for your team?</p>
+            <p className="mt-1 text-sm text-slate-600">Share an opening and reach people looking for their next role.</p>
+          </div>
+          <Link href="/jobs/post" className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-[#c7b58e] bg-white/70 px-4 text-sm font-semibold text-slate-800 transition hover:bg-white">Post a job<Check size={15} /></Link>
+        </section>
+      ) : !user ? (
+        <section className="flex flex-col items-start justify-between gap-4 rounded-2xl bg-[#f1eadb] p-5 sm:flex-row sm:items-center sm:p-6">
+          <div>
+            <p className="font-semibold text-slate-900">Hiring for your team?</p>
+            <p className="mt-1 text-sm text-slate-600">Share an opening and reach people looking for their next role.</p>
+          </div>
+          <Link href="/register" className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-[#c7b58e] bg-white/70 px-4 text-sm font-semibold text-slate-800 transition hover:bg-white">Post a job<Check size={15} /></Link>
+        </section>
+      ) : null}
     </div>
   );
 }

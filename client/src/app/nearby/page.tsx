@@ -91,7 +91,7 @@ export default function NearbyJobsPage() {
   if (!can("job:nearby")) {
     return (
       <div className="max-w-md mx-auto text-center py-12 bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
-        <h1 className="font-bold text-gray-900">Nearby jobs are available to Job Seekers and Entrepreneurs.</h1>
+        <h1 className="font-bold text-gray-900">Nearby jobs are available to Job Seekers.</h1>
         {!user && <Link href="/login" className="mt-3 inline-block bg-primary-700 text-white font-bold text-xs px-4 py-2 rounded-lg">Sign In</Link>}
       </div>
     );

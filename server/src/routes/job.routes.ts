@@ -111,17 +111,9 @@ router.get("/", optionalAuth, async (req: Request, res: Response) => {
             id: enriched.id,
             title: enriched.title,
             originalTitle: enriched.originalTitle,
-            category: enriched.category,
             district: enriched.district,
             wage: enriched.wage,
-            wageType: enriched.wageType,
-            status: enriched.status,
-            createdAt: enriched.createdAt,
             isMachineTranslated: enriched.isMachineTranslated,
-            employer: {
-              companyName: enriched.employer.employerProfile?.companyName || enriched.employer.fullName,
-              isVerified: enriched.employer.isVerified
-            },
             guestRestricted: true
           };
         }
