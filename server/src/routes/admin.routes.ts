@@ -4,9 +4,14 @@ import { PrismaClient, Role } from "@prisma/client";
 import { authenticateToken } from "../middleware/auth.middleware";
 import { requirePermission } from "../middleware/role.middleware";
 import { logAuditAction } from "../services/audit.service";
+import { isRoleEnabled, ROLE_DEFINITIONS } from "../config/permissions";
 
 const router = Router();
 const prisma = new PrismaClient();
+
+function isEnabledRole(value: unknown): value is Role {
+  return Object.values(Role).some((role) => role === value && isRoleEnabled(role));
+}
 
 router.use(authenticateToken);
 
@@ -56,7 +61,10 @@ router.get("/users", requirePermission("user:manage"), async (req: Request, res:
       createdAt: u.createdAt
     }));
 
-    return res.json({ users: safeUsers, count: safeUsers.length });
+    const availableRoles = Object.values(Role)
+      .filter(isRoleEnabled)
+      .map((role) => ({ value: role, label: ROLE_DEFINITIONS[role].label }));
+    return res.json({ users: safeUsers, count: safeUsers.length, availableRoles });
   } catch (err) {
     return res.status(500).json({ error: "Failed to list users" });
   }
@@ -79,7 +87,21 @@ router.post("/users", requirePermission("user:manage"), async (req: Request, res
       return res.status(400).json({ error: "Email already in use." });
     }
 
-    const assignedRoles: Role[] = Array.isArray(roles) && roles.length > 0 ? roles : [Role.Verifier];
+    const roleValues: unknown[] = roles === undefined || (Array.isArray(roles) && roles.length === 0)
+      ? [Role.Verifier]
+      : Array.isArray(roles)
+        ? roles
+        : [];
+    const assignedRoles: Role[] = [];
+    for (const role of roleValues) {
+      if (!isEnabledRole(role)) {
+        return res.status(400).json({ error: "Roles must be enabled roles." });
+      }
+      if (!assignedRoles.includes(role)) assignedRoles.push(role);
+    }
+    if (assignedRoles.length === 0) {
+      return res.status(400).json({ error: "At least one enabled role must be assigned." });
+    }
     const passwordHash = await bcrypt.hash(password, 10);
 
     const user = await prisma.user.create({
@@ -167,9 +189,17 @@ router.post("/users/:id/roles", requirePermission("user:manage"), async (req: Re
       return res.status(400).json({ error: "At least one role must be assigned" });
     }
 
+    const assignedRoles: Role[] = [];
+    for (const role of roles as unknown[]) {
+      if (!isEnabledRole(role)) {
+        return res.status(400).json({ error: "Roles must be enabled roles." });
+      }
+      if (!assignedRoles.includes(role)) assignedRoles.push(role);
+    }
+
     await prisma.userRole.deleteMany({ where: { userId: id } });
     await prisma.userRole.createMany({
-      data: roles.map((r: Role) => ({ userId: id, role: r }))
+      data: assignedRoles.map((role) => ({ userId: id, role }))
     });
 
     await logAuditAction(prisma, {
@@ -177,10 +207,10 @@ router.post("/users/:id/roles", requirePermission("user:manage"), async (req: Re
       actorId: req.user!.id,
       targetType: "User",
       targetId: id,
-      details: { newRoles: roles }
+      details: { newRoles: assignedRoles }
     });
 
-    return res.json({ message: "User roles updated successfully", roles });
+    return res.json({ message: "User roles updated successfully", roles: assignedRoles });
   } catch (err) {
     return res.status(500).json({ error: "Failed to update user roles" });
   }

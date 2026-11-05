@@ -4,21 +4,23 @@ import jwt from "jsonwebtoken";
 import { PrismaClient, Role } from "@prisma/client";
 import { authenticateToken } from "../middleware/auth.middleware";
 import { SRI_LANKA_DISTRICTS } from "../constants/districts";
+import { ROLE_DEFINITIONS, permissionsForRoles } from "../config/permissions";
 
 const router = Router();
 const prisma = new PrismaClient();
 const JWT_SECRET = process.env.JWT_SECRET || "rakiya_abimana_jwt_super_secret_key_2026_lk";
 
-const ALLOWED_REGISTER_ROLES: Role[] = [
-  Role.JobSeeker,
-  Role.Entrepreneur,
-  Role.Employer,
-  Role.Funder,
-  Role.TrainingProvider
-];
-
 function generateToken(userId: string): string {
   return jwt.sign({ userId }, JWT_SECRET, { expiresIn: "7d" });
+}
+
+function isRole(value: unknown): value is Role {
+  return Object.values(Role).some((role) => role === value);
+}
+
+function isSelfRegistrableRole(role: Role): boolean {
+  const definition = ROLE_DEFINITIONS[role];
+  return definition.enabled && definition.selfRegistrable;
 }
 
 function setAuthCookie(res: Response, token: string) {
@@ -31,6 +33,13 @@ function setAuthCookie(res: Response, token: string) {
 }
 
 // POST /api/auth/register
+router.get("/register", (_req: Request, res: Response) => {
+  const roles = Object.values(Role)
+    .filter(isSelfRegistrableRole)
+    .map((role) => ({ value: role, label: ROLE_DEFINITIONS[role].label }));
+  return res.json({ roles });
+});
+
 router.post("/register", async (req: Request, res: Response) => {
   try {
     const {
@@ -78,15 +87,23 @@ router.post("/register", async (req: Request, res: Response) => {
       return res.status(400).json({ error: "An account with this email address already exists." });
     }
 
-    // Role validation: Admin and Verifier accounts cannot be self-registered
-    const requestedRoles: Role[] = Array.isArray(roles) && roles.length > 0 ? Array.from(new Set(roles)) : [Role.JobSeeker];
-    const invalidRoles = requestedRoles.filter((r) => !ALLOWED_REGISTER_ROLES.includes(r));
-    if (invalidRoles.length > 0) {
+    const roleValues: unknown[] = roles === undefined || (Array.isArray(roles) && roles.length === 0)
+      ? [Role.JobSeeker]
+      : Array.isArray(roles)
+        ? roles
+        : [];
+    if (roleValues.length > 1) {
+      return res.status(400).json({ error: "Only one role may be selected during registration." });
+    }
+
+    const roleValue = roleValues[0];
+    if (!isRole(roleValue) || !isSelfRegistrableRole(roleValue)) {
       return res.status(400).json({
-        error: `Cannot self-register for restricted role(s): ${invalidRoles.join(", ")}. Verifier and Admin accounts are created by an administrator.`
+        error: "The selected role is disabled or cannot be self-registered. Verifier and Admin accounts are created by an administrator."
       });
     }
 
+    const requestedRoles: Role[] = [roleValue];
     const hasRole = (role: Role) => requestedRoles.includes(role);
     if (hasRole(Role.Employer) && !employerProfile?.companyName?.trim()) {
       return res.status(400).json({ error: "Company or business name is required for Employer registration." });
@@ -97,10 +114,6 @@ router.post("/register", async (req: Request, res: Response) => {
     if (hasRole(Role.Funder) && !["INDIVIDUAL", "ORGANIZATION"].includes(String(funderProfile?.accountType || ""))) {
       return res.status(400).json({ error: "Funder account type must be INDIVIDUAL or ORGANIZATION." });
     }
-    if (hasRole(Role.TrainingProvider) && !trainingProviderProfile?.institutionName?.trim()) {
-      return res.status(400).json({ error: "Institution or training provider name is required." });
-    }
-
     const numericFields = [
       ["experienceYears", jobSeekerProfile?.experienceYears],
       ["expectedSalary", jobSeekerProfile?.expectedSalary],
@@ -228,6 +241,7 @@ router.post("/register", async (req: Request, res: Response) => {
         preferredLanguage: newUser.preferredLanguage,
         isVerified: newUser.isVerified,
         roles: newUser.roles.map((r) => r.role),
+        permissions: permissionsForRoles(newUser.roles.map((r) => r.role)),
         jobSeekerProfile: newUser.jobSeekerProfile,
         employerProfile: newUser.employerProfile,
         entrepreneurProfile: newUser.entrepreneurProfile,
@@ -296,6 +310,7 @@ router.post("/login", async (req: Request, res: Response) => {
         preferredLanguage: user.preferredLanguage,
         isVerified: user.isVerified,
         roles: user.roles.map((r) => r.role),
+        permissions: permissionsForRoles(user.roles.map((r) => r.role)),
         jobSeekerProfile: user.jobSeekerProfile,
         employerProfile: user.employerProfile,
         entrepreneurProfile: user.entrepreneurProfile,
@@ -359,6 +374,7 @@ router.get("/me", authenticateToken, async (req: Request, res: Response) => {
         preferredLanguage: user.preferredLanguage,
         isVerified: user.isVerified,
         roles: user.roles.map((r) => r.role),
+        permissions: permissionsForRoles(user.roles.map((r) => r.role)),
         jobSeekerProfile: user.jobSeekerProfile,
         employerProfile: user.employerProfile,
         entrepreneurProfile: user.entrepreneurProfile,
@@ -455,4 +471,3 @@ router.put("/password", authenticateToken, async (req: Request, res: Response) =
 });
 
 export default router;
-
