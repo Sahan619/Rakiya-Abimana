@@ -42,9 +42,10 @@ export default function JobDetailPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [districts, setDistricts] = useState<any[]>([]);
+  const [categories, setCategories] = useState<{ id: string; nameEn: string }[]>([]);
   const [editOpen, setEditOpen] = useState(false);
   const [editTitle, setEditTitle] = useState("");
-  const [editCategory, setEditCategory] = useState("blue-collar");
+  const [editCategory, setEditCategory] = useState("skilled-trades-technical-services");
   const [editDistrictId, setEditDistrictId] = useState("");
   const [editWage, setEditWage] = useState("");
   const [editWageType, setEditWageType] = useState("MONTHLY");
@@ -56,12 +57,15 @@ export default function JobDetailPage() {
     api.get("/master/districts").then((res: any) => {
       if (res?.districts) setDistricts(res.districts);
     }).catch(() => {});
+    api.get("/master/categories").then((res: any) => {
+      if (res?.categories) setCategories(res.categories);
+    }).catch(() => {});
   }, []);
 
   const openEditModal = () => {
     if (!job) return;
     setEditTitle(job.title || "");
-    setEditCategory(job.category || "blue-collar");
+    setEditCategory(job.category || "skilled-trades-technical-services");
     setEditDistrictId(job.districtId || "");
     setEditWage(String(job.wage ?? ""));
     setEditWageType(job.wageType || "MONTHLY");
@@ -205,7 +209,7 @@ export default function JobDetailPage() {
         <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 border-b border-gray-100 pb-4">
           <div>
             <span className="inline-block bg-primary-50 text-primary-800 border border-primary-200 text-xs font-bold px-2.5 py-0.5 rounded uppercase">
-              {job.category}
+                  {categories.find((category) => category.id === job.category)?.nameEn || job.category?.replace(/-/g, " ")}
             </span>
             <h1 className="text-xl sm:text-2xl font-bold text-gray-900 mt-2">
               {titleToDisplay}
@@ -469,9 +473,7 @@ export default function JobDetailPage() {
                     onChange={(e) => setEditCategory(e.target.value)}
                     className="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm text-slate-700 outline-none transition focus:border-primary-500 focus:ring-4 focus:ring-primary-100"
                   >
-                    <option value="blue-collar">Blue Collar & General Labor</option>
-                    <option value="skilled-trades">Skilled Tradesperson</option>
-                    <option value="white-collar">White Collar & Administrative</option>
+                    {categories.map((category) => <option key={category.id} value={category.id}>{category.nameEn}</option>)}
                   </select>
                 </div>
 

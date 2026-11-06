@@ -159,7 +159,7 @@ router.post("/register", async (req: Request, res: Response) => {
         },
         jobSeekerProfile: hasRole(Role.JobSeeker) ? {
           create: {
-            category: String(jobSeekerProfile?.category || "skilled tradesperson").trim(),
+            category: String(jobSeekerProfile?.category || "skilled-trades-technical-services").trim(),
             skills: String(jobSeekerProfile?.skills || "Not provided").trim(),
             trade: jobSeekerProfile?.trade?.trim() || null,
             experienceYears: Number.isFinite(Number(jobSeekerProfile?.experienceYears)) ? Number(jobSeekerProfile.experienceYears) : 0,

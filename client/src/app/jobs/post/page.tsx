@@ -17,7 +17,7 @@ export default function PostJobPage() {
   const [categories, setCategories] = useState<any[]>([]);
 
   const [title, setTitle] = useState("");
-  const [category, setCategory] = useState("blue-collar");
+  const [category, setCategory] = useState("skilled-trades-technical-services");
   const [districtId, setDistrictId] = useState("");
   const [wage, setWage] = useState("");
   const [wageType, setWageType] = useState("MONTHLY");
@@ -35,7 +35,10 @@ export default function PostJobPage() {
       }
     });
     api.get("/master/categories").then((res) => {
-      if (res?.categories) setCategories(res.categories);
+      if (res?.categories) {
+        setCategories(res.categories);
+        if (res.categories.length > 0) setCategory((current) => res.categories.some((item: any) => item.id === current) ? current : res.categories[0].id);
+      }
     });
   }, [user]);
 
@@ -169,9 +172,7 @@ export default function PostJobPage() {
                 onChange={(e) => setCategory(e.target.value)}
                 className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm bg-white"
               >
-                <option value="blue-collar">Blue Collar & General Labor</option>
-                <option value="skilled-trades">Skilled Tradesperson</option>
-                <option value="white-collar">White Collar & Administrative</option>
+                {categories.map((item) => <option key={item.id} value={item.id}>{item.nameEn}</option>)}
               </select>
             </div>
 

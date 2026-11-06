@@ -132,7 +132,7 @@ async function main() {
       roles: { create: [{ role: Role.JobSeeker }] },
       jobSeekerProfile: {
         create: {
-          category: "skilled tradesperson",
+          category: "skilled-trades-technical-services",
           trade: "Licensed Electrician",
           skills: "Domestic wiring, 3-phase industrial power, circuit breaker repair, solar installation",
           experienceYears: 6,
@@ -176,7 +176,7 @@ async function main() {
       roles: { create: [{ role: Role.JobSeeker }] },
       jobSeekerProfile: {
         create: {
-          category: "white-collar",
+          category: "finance-accounting-business-services",
           trade: "Accounts Clerk & Bookkeeper",
           skills: "QuickBooks, MS Excel, Tally, payroll preparation, bilingual Tamil-English",
           experienceYears: 4,
@@ -350,7 +350,7 @@ async function main() {
     data: {
       employerId: sunil.id,
       title: "Master Wood Carpenter & Joiner Needed",
-      category: "skilled-trades",
+      category: "skilled-trades-technical-services",
       districtId: "gampaha",
       lat: 7.084,
       lng: 79.9943,
@@ -368,7 +368,7 @@ async function main() {
     data: {
       employerId: sunil.id,
       title: "Site Maintenance Electrician",
-      category: "skilled-trades",
+      category: "skilled-trades-technical-services",
       districtId: "colombo",
       lat: 6.9271,
       lng: 79.8612,
@@ -386,7 +386,7 @@ async function main() {
     data: {
       employerId: sunil.id,
       title: "Factory Assembly & Packing Crew",
-      category: "blue-collar",
+      category: "manufacturing-production",
       districtId: "gampaha",
       lat: 7.084,
       lng: 79.9943,

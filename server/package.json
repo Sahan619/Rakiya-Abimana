@@ -12,7 +12,8 @@
     "test:translation": "ts-node src/services/translation.test.ts",
     "prisma:generate": "prisma generate",
     "prisma:push": "prisma db push",
-    "seed": "ts-node prisma/seed.ts"
+    "seed": "ts-node prisma/seed.ts",
+    "seed:demo-jobs": "ts-node prisma/seed-demo-jobs.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.19.1",
