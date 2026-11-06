@@ -24,6 +24,7 @@ export default function NearbyJobsPage() {
   const { t, locale } = useLanguage();
 
   const [districts, setDistricts] = useState<any[]>([]);
+  const [categories, setCategories] = useState<{ id: string; nameEn: string }[]>([]);
   const [selectedDistrict, setSelectedDistrict] = useState(user?.districtId || "");
   const [gpsCoords, setGpsCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [gpsLoading, setGpsLoading] = useState(false);
@@ -44,6 +45,9 @@ export default function NearbyJobsPage() {
         if (user?.districtId) setSelectedDistrict(user.districtId);
       }
     });
+    api.get("/master/categories").then((res) => {
+      if (res?.categories) setCategories(res.categories);
+    }).catch(() => {});
 
     if (!can("job:nearby")) return;
     if (user?.lat && user?.lng) {
@@ -252,7 +256,7 @@ export default function NearbyJobsPage() {
                     <div>
                       {can("job:view_detail") && <div className="flex items-center space-x-2">
                         <span className="inline-block bg-primary-50 text-primary-800 border border-primary-200 text-xs font-bold px-2 py-0.5 rounded uppercase">
-                          {job.category}
+                          {categories.find((category) => category.id === job.category)?.nameEn || job.category?.replace(/-/g, " ")}
                         </span>
                         {/* Distance Badge */}
                         <span className="inline-flex items-center space-x-1 bg-blue-50 text-blue-800 border border-blue-200 text-xs font-bold px-2 py-0.5 rounded">

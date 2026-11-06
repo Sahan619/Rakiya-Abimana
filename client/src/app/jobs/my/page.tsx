@@ -49,6 +49,7 @@ export default function MyJobsPage() {
 
   const [jobs, setJobs] = useState<JobItem[]>([]);
   const [districts, setDistricts] = useState<District[]>([]);
+  const [categories, setCategories] = useState<{ id: string; nameEn: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [pageMessage, setPageMessage] = useState<string | null>(null);
   const [pageError, setPageError] = useState<string | null>(null);
@@ -56,7 +57,7 @@ export default function MyJobsPage() {
   // Edit Modal State
   const [editingJob, setEditingJob] = useState<JobItem | null>(null);
   const [editTitle, setEditTitle] = useState("");
-  const [editCategory, setEditCategory] = useState("blue-collar");
+  const [editCategory, setEditCategory] = useState("skilled-trades-technical-services");
   const [editDistrictId, setEditDistrictId] = useState("");
   const [editWage, setEditWage] = useState("");
   const [editWageType, setEditWageType] = useState("MONTHLY");
@@ -94,6 +95,9 @@ export default function MyJobsPage() {
     api.get("/master/districts").then((res: any) => {
       if (res?.districts) setDistricts(res.districts);
     }).catch(() => {});
+    api.get("/master/categories").then((res: any) => {
+      if (res?.categories) setCategories(res.categories);
+    }).catch(() => {});
   }, [authLoading, user, can, fetchMyJobs]);
 
   const handleToggleStatus = async (jobId: string, currentStatus: "OPEN" | "CLOSED") => {
@@ -110,7 +114,7 @@ export default function MyJobsPage() {
   const openEditModal = (job: JobItem) => {
     setEditingJob(job);
     setEditTitle(job.title || "");
-    setEditCategory(job.category || "blue-collar");
+    setEditCategory(job.category || "skilled-trades-technical-services");
     setEditDistrictId(job.districtId || "");
     setEditWage(String(job.wage ?? ""));
     setEditWageType(job.wageType || "MONTHLY");
@@ -306,7 +310,7 @@ export default function MyJobsPage() {
                         {job.status}
                       </span>
                       <span className="rounded-full bg-primary-50 px-2.5 py-0.5 text-[11px] font-semibold text-primary-800 border border-primary-200">
-                        {job.category.replace(/-/g, " ")}
+                        {categories.find((category) => category.id === job.category)?.nameEn || job.category.replace(/-/g, " ")}
                       </span>
                       <span className="text-xs text-slate-400">
                         Posted {new Date(job.createdAt).toLocaleDateString(locale)}
@@ -472,9 +476,7 @@ export default function MyJobsPage() {
                     onChange={(e) => setEditCategory(e.target.value)}
                     className="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm text-slate-700 outline-none transition focus:border-primary-500 focus:ring-4 focus:ring-primary-100"
                   >
-                    <option value="blue-collar">Blue Collar & General Labor</option>
-                    <option value="skilled-trades">Skilled Tradesperson</option>
-                    <option value="white-collar">White Collar & Administrative</option>
+                    {categories.map((category) => <option key={category.id} value={category.id}>{category.nameEn}</option>)}
                   </select>
                 </div>
 

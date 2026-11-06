@@ -54,7 +54,7 @@ export default function ProfilePage() {
   const [preferredLang, setPreferredLang] = useState("en");
 
   // Job seeker profile fields
-  const [jsCategory, setJsCategory] = useState("skilled tradesperson");
+  const [jsCategory, setJsCategory] = useState("skilled-trades-technical-services");
   const [jsTrade, setJsTrade] = useState("");
   const [jsSkills, setJsSkills] = useState("");
   const [jsExp, setJsExp] = useState("0");
@@ -120,7 +120,7 @@ export default function ProfilePage() {
       setPreferredLang(user.preferredLanguage || "en");
 
       if (user.jobSeekerProfile) {
-        setJsCategory(user.jobSeekerProfile.category || "skilled tradesperson");
+        setJsCategory(user.jobSeekerProfile.category || "skilled-trades-technical-services");
         setJsTrade(user.jobSeekerProfile.trade || "");
         setJsSkills(user.jobSeekerProfile.skills || "");
         setJsExp(String(user.jobSeekerProfile.experienceYears ?? 0));
@@ -534,9 +534,7 @@ export default function ProfilePage() {
                   onChange={(e) => setJsCategory(e.target.value)}
                   className="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm text-slate-700 outline-none transition focus:border-primary-500 focus:ring-4 focus:ring-primary-100"
                 >
-                  <option value="blue-collar">Blue Collar / General Labor</option>
-                  <option value="skilled tradesperson">Skilled Tradesperson</option>
-                  <option value="white-collar">White Collar & Administrative</option>
+                  {categories.map((category) => <option key={category.id} value={category.id}>{category.nameEn}</option>)}
                 </select>
               </div>
 

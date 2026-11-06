@@ -55,6 +55,7 @@ export default function HomePage() {
   const { t, locale } = useLanguage();
   const { user, can } = useAuth();
   const [jobs, setJobs] = useState<FeaturedJob[]>([]);
+  const [categories, setCategories] = useState<{ id: string; nameEn: string }[]>([]);
   const [jobsLoading, setJobsLoading] = useState(true);
   const [jobsError, setJobsError] = useState("");
 
@@ -68,6 +69,9 @@ export default function HomePage() {
     let active = true;
     setJobsLoading(true);
     setJobsError("");
+    api.get<{ categories: { id: string; nameEn: string }[] }>("/master/categories")
+      .then((response) => setCategories(response.categories || []))
+      .catch(() => {});
     api.get<{ jobs: FeaturedJob[] }>(`/jobs?lang=${locale}`)
       .then((response) => {
         if (active) setJobs((response.jobs || []).slice(0, 3));
@@ -245,7 +249,7 @@ export default function HomePage() {
                     <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary-50 text-primary-700"><Building2 size={20} /></span>
                     {!job.guestRestricted && <VerifiedBadge isVerified={job.employer?.isVerified} size="sm" />}
                   </div>
-                  {!job.guestRestricted && <span className="mt-5 text-[11px] font-bold uppercase tracking-wide text-primary-700">{job.category}</span>}
+                  {!job.guestRestricted && <span className="mt-5 text-[11px] font-bold uppercase tracking-wide text-primary-700">{categories.find((category) => category.id === job.category)?.nameEn || job.category?.replace(/-/g, " ")}</span>}
                   <h3 className="mt-1 text-lg font-semibold leading-snug text-slate-900">{job.title}</h3>
                   <p className="mt-2 text-sm text-slate-500">{!job.guestRestricted && `${job.employer?.companyName || "Employer"} · `}{districtName(job)}</p>
                   <div className="mt-5 flex items-center justify-between border-t border-slate-100 pt-4">

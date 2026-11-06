@@ -1,4 +1,22 @@
 export const DEFAULT_JOB_CATEGORIES = [
+  ...[
+    ["skilled-trades-technical-services", "Skilled Trades & Technical Services"],
+    ["construction-infrastructure", "Construction & Infrastructure"],
+    ["manufacturing-production", "Manufacturing & Production"],
+    ["agriculture-farming", "Agriculture & Farming"],
+    ["information-technology-digital-services", "Information Technology & Digital Services"],
+    ["administration-office-support", "Administration & Office Support"],
+    ["sales-marketing-retail", "Sales, Marketing & Retail"],
+    ["hospitality-tourism", "Hospitality & Tourism"],
+    ["transportation-logistics", "Transportation & Logistics"],
+    ["healthcare-caregiving", "Healthcare & Caregiving"],
+    ["education-training", "Education & Training"],
+    ["beauty-fashion-personal-services", "Beauty, Fashion & Personal Services"],
+    ["cleaning-maintenance-facility-services", "Cleaning, Maintenance & Facility Services"],
+    ["finance-accounting-business-services", "Finance, Accounting & Business Services"],
+    ["general-labor-other-services", "General Labor & Other Services"]
+  ].map(([id, nameEn]) => ({ id, nameEn, nameSi: nameEn, nameTa: nameEn, trades: [] }))
+/*
   {
     id: "blue-collar",
     nameEn: "Blue Collar & General Labor",
@@ -39,6 +57,7 @@ export const DEFAULT_JOB_CATEGORIES = [
       { id: "it-support", nameEn: "IT & Computer Technician", nameSi: "තොරතුරු තාක්ෂණ සහායක", nameTa: "தகவல் தொழில்நுட்ப ஆதரவு" }
     ]
   }
+*/
 ];
 
 export const DEFAULT_SECTORS = [

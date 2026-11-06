@@ -1,0 +1,777 @@
+// Rakiya-Abimana — Complete Proposed ERD (Sprint 01)
+// PostgreSQL-oriented DBML for dbdiagram.io.
+// [EXISTING] mirrors the current Prisma schema.
+// [PROPOSED] documents future Sprint 01 design extensions and assumptions.
+
+Enum user_role_code {
+  Admin
+  Verifier
+  JobSeeker
+  Entrepreneur
+  Employer
+  Funder
+  TrainingProvider
+}
+
+Enum verification_status {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+Enum pitch_status {
+  DRAFT
+  PENDING_REVIEW
+  APPROVED
+  REJECTED
+}
+
+Enum job_status {
+  OPEN
+  CLOSED
+}
+
+Enum application_status {
+  APPLIED
+  REVIEWING
+  SHORTLISTED
+  REJECTED
+  ACCEPTED
+}
+
+Enum funding_type {
+  MICRO_LOAN
+  GRANT
+}
+
+Enum language_code {
+  en
+  si
+  ta
+}
+
+Enum document_type {
+  NIC
+  GRAMA_NILADHARI_CERTIFICATE
+  BUSINESS_REGISTRATION
+  INSTITUTION_PROOF
+  RESUME
+  CERTIFICATE
+  OTHER
+}
+
+Enum conversation_type {
+  JOB_APPLICATION
+  PITCH_INTEREST
+  DIRECT
+}
+
+// ---------------------------------------------------------------------------
+// Existing account, access, location, and platform configuration entities
+// ---------------------------------------------------------------------------
+
+Table users [headercolor: #2F6F52] {
+  id uuid [pk, default: `gen_random_uuid()`]
+  email varchar(320) [not null, unique]
+  password_hash text [not null]
+  full_name varchar(200) [not null]
+  date_of_birth date [not null]
+  phone varchar(40)
+  district_id varchar(80)
+  lat decimal(9,6)
+  lng decimal(9,6)
+  preferred_language varchar(2) [not null, default: 'en']
+  is_verified boolean [not null, default: false]
+  is_active boolean [not null, default: true]
+  terms_accepted_at timestamptz [not null, default: `now()`]
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`]
+
+  Note: 'EXISTING. Current Prisma User model. Exact GPS is protected; public APIs expose rounded/approximate coordinates.'
+}
+
+Table roles [headercolor: #2F6F52] {
+  code user_role_code [pk]
+  display_name varchar(100) [not null]
+  is_enabled boolean [not null, default: true]
+  self_registrable boolean [not null, default: false]
+
+  Note: 'PROPOSED normalization of the current Prisma Role enum. Seeded with the seven current role values.'
+}
+
+Table user_roles [headercolor: #2F6F52] {
+  id uuid [pk, default: `gen_random_uuid()`]
+  user_id uuid [not null]
+  role_code user_role_code [not null]
+  assigned_by_user_id uuid
+  assigned_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    (user_id, role_code) [unique]
+  }
+
+  Note: 'EXISTING. Current Prisma UserRole model; assigned_by_user_id is a proposed audit-friendly extension.'
+}
+
+Table languages [headercolor: #94733A] {
+  code varchar(2) [pk]
+  english_name varchar(80) [not null]
+  native_name varchar(120) [not null]
+  is_enabled boolean [not null, default: true]
+
+  Note: 'PROPOSED reference data. Supports English, Sinhala, and Tamil without repeating language values in every table.'
+}
+
+Table districts [headercolor: #2F6F52] {
+  id varchar(80) [pk]
+  name_en varchar(120) [not null]
+  name_si varchar(120) [not null]
+  name_ta varchar(120) [not null]
+  province varchar(120) [not null]
+  latitude decimal(9,6) [not null]
+  longitude decimal(9,6) [not null]
+
+  Note: 'EXISTING. Current Prisma District model; the three name columns support the current trilingual master data.'
+}
+
+Table job_categories [headercolor: #2F6F52] {
+  id varchar(80) [pk]
+  name_en varchar(160) [not null]
+  name_si varchar(160) [not null]
+  name_ta varchar(160) [not null]
+}
+
+Table trades [headercolor: #2F6F52] {
+  id varchar(80) [pk]
+  category_id varchar(80) [not null]
+  name_en varchar(160) [not null]
+  name_si varchar(160) [not null]
+  name_ta varchar(160) [not null]
+}
+
+Table sectors [headercolor: #2F6F52] {
+  id varchar(80) [pk]
+  name_en varchar(160) [not null]
+  name_si varchar(160) [not null]
+  name_ta varchar(160) [not null]
+}
+
+Table system_settings [headercolor: #2F6F52] {
+  key varchar(120) [pk]
+  value text [not null]
+  description text
+  updated_at timestamptz [not null, default: `now()`]
+}
+
+Table audit_logs [headercolor: #2F6F52] {
+  id uuid [pk, default: `gen_random_uuid()`]
+  action varchar(120) [not null]
+  actor_id uuid
+  target_type varchar(120) [not null]
+  target_id uuid
+  details jsonb
+  ip_address inet
+  created_at timestamptz [not null, default: `now()`]
+
+  Note: 'EXISTING. Current Prisma AuditLog stores administrative and verification actions. JSONB is shown as a normalized event payload, although current code stores a string.'
+}
+
+// ---------------------------------------------------------------------------
+// Existing role-specific profiles and proposed normalized profile extensions
+// ---------------------------------------------------------------------------
+
+Table job_seeker_profiles [headercolor: #2F6F52] {
+  id uuid [pk, default: `gen_random_uuid()`]
+  user_id uuid [not null, unique]
+  category varchar(120) [not null]
+  skills text [not null]
+  trade varchar(160)
+  experience_years int [default: 0]
+  bio text
+  education_qualifications text
+  preferred_categories text
+  preferred_locations text
+  expected_salary decimal(14,2)
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`]
+
+  Note: 'EXISTING. Current implementation stores skills/preferences as text. Proposed skill tables below normalize those values for future search.'
+}
+
+Table employer_profiles [headercolor: #2F6F52] {
+  id uuid [pk, default: `gen_random_uuid()`]
+  user_id uuid [not null, unique]
+  company_name varchar(200) [not null]
+  business_reg_number varchar(120)
+  description text
+  industry varchar(160)
+  business_address text
+  contact_phone varchar(40)
+  website varchar(500)
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`]
+
+  Note: 'EXISTING. Current employer/business profile. A future Business table can supersede this one when multi-member businesses are required.'
+}
+
+Table entrepreneur_profiles [headercolor: #2F6F52] {
+  id uuid [pk, default: `gen_random_uuid()`]
+  user_id uuid [not null, unique]
+  business_name varchar(200)
+  business_category varchar(160)
+  business_idea text
+  business_stage varchar(100)
+  funding_requirement decimal(14,2)
+  skills_experience text
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`]
+}
+
+Table funder_profiles [headercolor: #2F6F52] {
+  id uuid [pk, default: `gen_random_uuid()`]
+  user_id uuid [not null, unique]
+  funder_type varchar(160) [not null]
+  account_type varchar(40) [not null, default: 'ORGANIZATION']
+  organization_name varchar(200)
+  organization_type varchar(120)
+  funding_interests text
+  focus_districts text
+  focus_sectors text
+  listed_in_directory boolean [not null, default: false]
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`]
+}
+
+Table training_provider_profiles [headercolor: #2F6F52] {
+  id uuid [pk, default: `gen_random_uuid()`]
+  user_id uuid [not null, unique]
+  institution_name varchar(240) [not null]
+  training_categories text
+  courses_offered text
+  accreditation text
+  training_location text
+  contact_phone varchar(40)
+  website varchar(500)
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`]
+}
+
+Table training_courses [headercolor: #94733A] {
+  id uuid [pk, default: `gen_random_uuid()`]
+  provider_id uuid [not null]
+  title_en varchar(240) [not null]
+  title_si varchar(240) [not null]
+  title_ta varchar(240) [not null]
+  description text
+  delivery_mode varchar(40)
+  location text
+  start_date date
+  end_date date
+  capacity int
+  status varchar(40) [not null, default: 'DRAFT']
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`]
+
+  Note: 'PROPOSED. Extends the current TrainingProvider directory profile into publishable vocational courses.'
+}
+
+Table course_skills [headercolor: #94733A] {
+  course_id uuid [not null]
+  skill_id uuid [not null]
+
+  indexes {
+    (course_id, skill_id) [pk]
+  }
+}
+
+Table training_enrollments [headercolor: #94733A] {
+  id uuid [pk, default: `gen_random_uuid()`]
+  course_id uuid [not null]
+  learner_id uuid [not null]
+  status varchar(40) [not null, default: 'ENROLLED']
+  enrolled_at timestamptz [not null, default: `now()`]
+  completed_at timestamptz
+
+  indexes {
+    (course_id, learner_id) [unique]
+  }
+}
+
+Table training_certificates [headercolor: #94733A] {
+  id uuid [pk, default: `gen_random_uuid()`]
+  enrollment_id uuid [not null, unique]
+  certificate_number varchar(120) [not null, unique]
+  issued_at timestamptz [not null]
+  document_url text
+
+  Note: 'PROPOSED. Certificate issuance is separate from enrollment so completion and evidence remain auditable.'
+}
+
+Table skills [headercolor: #94733A] {
+  id uuid [pk, default: `gen_random_uuid()`]
+  name_en varchar(160) [not null]
+  name_si varchar(160) [not null]
+  name_ta varchar(160) [not null]
+  category_id varchar(80)
+  is_active boolean [not null, default: true]
+
+  Note: 'PROPOSED. Normalizes the current comma-separated JobSeekerProfile.skills field.'
+}
+
+Table user_skills [headercolor: #94733A] {
+  user_id uuid [not null]
+  skill_id uuid [not null]
+  proficiency_level varchar(40)
+  years_experience decimal(5,2)
+  is_primary boolean [not null, default: false]
+
+  indexes {
+    (user_id, skill_id) [pk]
+  }
+
+  Note: 'PROPOSED. Junction table for worker skills and future matching.'
+}
+
+Table worker_experiences [headercolor: #94733A] {
+  id uuid [pk, default: `gen_random_uuid()`]
+  user_id uuid [not null]
+  employer_name varchar(200) [not null]
+  job_title varchar(160) [not null]
+  description text
+  started_on date
+  ended_on date
+  is_current boolean [not null, default: false]
+}
+
+Table education_records [headercolor: #94733A] {
+  id uuid [pk, default: `gen_random_uuid()`]
+  user_id uuid [not null]
+  institution_name varchar(240) [not null]
+  qualification varchar(200) [not null]
+  field_of_study varchar(160)
+  started_on date
+  completed_on date
+}
+
+Table businesses [headercolor: #94733A] {
+  id uuid [pk, default: `gen_random_uuid()`]
+  legal_name varchar(240) [not null]
+  display_name varchar(240)
+  business_registration_number varchar(120)
+  description text
+  industry varchar(160)
+  website varchar(500)
+  phone varchar(40)
+  address text
+  district_id varchar(80)
+  is_active boolean [not null, default: true]
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`]
+
+  Note: 'PROPOSED. Scalable replacement/extension for the current one-user EmployerProfile; supports entrepreneurs and multiple business members.'
+}
+
+Table business_members [headercolor: #94733A] {
+  business_id uuid [not null]
+  user_id uuid [not null]
+  member_role varchar(80) [not null]
+  joined_at timestamptz [not null, default: `now()`]
+  ended_at timestamptz
+
+  indexes {
+    (business_id, user_id) [pk]
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Existing employment domain and proposed recruitment extensions
+// ---------------------------------------------------------------------------
+
+Table jobs [headercolor: #2F6F52] {
+  id uuid [pk, default: `gen_random_uuid()`]
+  employer_id uuid [not null]
+  title varchar(240) [not null]
+  category varchar(120) [not null]
+  district_id varchar(80) [not null]
+  lat decimal(9,6) [not null]
+  lng decimal(9,6) [not null]
+  wage decimal(14,2) [not null]
+  wage_type varchar(40) [not null, default: 'MONTHLY']
+  description text [not null]
+  source_language varchar(2) [not null, default: 'en']
+  status job_status [not null, default: 'OPEN']
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`]
+}
+
+Table job_skills [headercolor: #94733A] {
+  job_id uuid [not null]
+  skill_id uuid [not null]
+  required_level varchar(40)
+
+  indexes {
+    (job_id, skill_id) [pk]
+  }
+
+  Note: 'PROPOSED. Normalized skills required by a job posting.'
+}
+
+Table job_applications [headercolor: #2F6F52] {
+  id uuid [pk, default: `gen_random_uuid()`]
+  job_id uuid [not null]
+  applicant_id uuid [not null]
+  status application_status [not null, default: 'APPLIED']
+  notes text
+  applied_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    (job_id, applicant_id) [unique]
+  }
+}
+
+Table application_status_history [headercolor: #94733A] {
+  id uuid [pk, default: `gen_random_uuid()`]
+  application_id uuid [not null]
+  from_status application_status
+  to_status application_status [not null]
+  changed_by_user_id uuid [not null]
+  note text
+  changed_at timestamptz [not null, default: `now()`]
+
+  Note: 'PROPOSED. Preserves the recruitment timeline instead of overwriting status history.'
+}
+
+Table saved_jobs [headercolor: #94733A] {
+  user_id uuid [not null]
+  job_id uuid [not null]
+  saved_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    (user_id, job_id) [pk]
+  }
+
+  Note: 'PROPOSED assumption: users may bookmark jobs for later review.'
+}
+
+// ---------------------------------------------------------------------------
+// Existing entrepreneurship/funding domain and proposed funding expansion
+// ---------------------------------------------------------------------------
+
+Table pitches [headercolor: #2F6F52] {
+  id uuid [pk, default: `gen_random_uuid()`]
+  entrepreneur_id uuid [not null]
+  title varchar(240) [not null]
+  story text [not null]
+  district_id varchar(80) [not null]
+  sector_id varchar(80)
+  funding_needed decimal(14,2) [not null]
+  funding_type funding_type [not null, default: 'MICRO_LOAN']
+  status pitch_status [not null, default: 'PENDING_REVIEW']
+  rejection_reason text
+  checklist_result jsonb
+  source_language varchar(2) [not null, default: 'en']
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`]
+
+  Note: 'EXISTING. Current Pitch is the platform funding request/proposal entity.'
+}
+
+Table pitch_interests [headercolor: #2F6F52] {
+  id uuid [pk, default: `gen_random_uuid()`]
+  pitch_id uuid [not null]
+  funder_id uuid [not null]
+  pledge_amount decimal(14,2)
+  message text [not null]
+  created_at timestamptz [not null, default: `now()`]
+
+  Note: 'EXISTING. Informational, non-binding funder interest; it is not a payment or disbursement.'
+}
+
+Table funding_programs [headercolor: #94733A] {
+  id uuid [pk, default: `gen_random_uuid()`]
+  funder_id uuid [not null]
+  name varchar(240) [not null]
+  description text
+  funding_type funding_type [not null]
+  minimum_amount decimal(14,2)
+  maximum_amount decimal(14,2)
+  eligibility_rules text
+  application_deadline date
+  is_active boolean [not null, default: true]
+  created_at timestamptz [not null, default: `now()`]
+
+  Note: 'PROPOSED assumption: funders may publish named grant/loan programs beyond one-off pitch interests.'
+}
+
+Table funding_program_sectors [headercolor: #94733A] {
+  funding_program_id uuid [not null]
+  sector_id varchar(80) [not null]
+
+  indexes {
+    (funding_program_id, sector_id) [pk]
+  }
+}
+
+Table funding_program_districts [headercolor: #94733A] {
+  funding_program_id uuid [not null]
+  district_id varchar(80) [not null]
+
+  indexes {
+    (funding_program_id, district_id) [pk]
+  }
+}
+
+Table funding_applications [headercolor: #94733A] {
+  id uuid [pk, default: `gen_random_uuid()`]
+  funding_program_id uuid [not null]
+  entrepreneur_id uuid [not null]
+  pitch_id uuid
+  status varchar(50) [not null, default: 'SUBMITTED']
+  requested_amount decimal(14,2) [not null]
+  submitted_at timestamptz [not null, default: `now()`]
+  reviewed_at timestamptz
+
+  Note: 'PROPOSED assumption. No money movement, banking, or disbursement tables are included because the README explicitly excludes financial intermediation.'
+}
+
+// ---------------------------------------------------------------------------
+// Existing identity verification and proposed document/provider integrations
+// ---------------------------------------------------------------------------
+
+Table verification_requests [headercolor: #2F6F52] {
+  id uuid [pk, default: `gen_random_uuid()`]
+  user_id uuid [not null, unique]
+  encrypted_nic text
+  nic_format varchar(20)
+  dob_match boolean
+  grama_niladhari_doc_url text
+  business_reg_doc_url text
+  institution_doc_url text
+  status verification_status [not null, default: 'PENDING']
+  rejection_reason text
+  checklist_result jsonb
+  reviewer_id uuid
+  reviewed_at timestamptz
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`]
+
+  Note: 'EXISTING. NIC is encrypted at rest. Document access is restricted to the user, Verifier, and Admin according to the application rules.'
+}
+
+Table verification_documents [headercolor: #94733A] {
+  id uuid [pk, default: `gen_random_uuid()`]
+  verification_request_id uuid [not null]
+  document_type document_type [not null]
+  storage_url text [not null]
+  original_file_name varchar(255)
+  checksum varchar(128)
+  uploaded_at timestamptz [not null, default: `now()`]
+
+  Note: 'PROPOSED normalization of the current three document URL columns; retains one row per uploaded document.'
+}
+
+Table external_verification_checks [headercolor: #94733A] {
+  id uuid [pk, default: `gen_random_uuid()`]
+  verification_request_id uuid [not null]
+  provider varchar(120) [not null]
+  provider_reference varchar(200)
+  request_status varchar(50) [not null]
+  response_summary text
+  checked_at timestamptz [not null, default: `now()`]
+
+  Note: 'PROPOSED. Supports the documented government/DRP live-check integration without storing raw provider secrets.'
+}
+
+// ---------------------------------------------------------------------------
+// Existing messaging, translation, notifications, and proposed audio support
+// ---------------------------------------------------------------------------
+
+Table conversations [headercolor: #2F6F52] {
+  id uuid [pk, default: `gen_random_uuid()`]
+  type conversation_type [not null]
+  reference_id uuid
+  participant1_id uuid [not null]
+  participant2_id uuid [not null]
+  created_at timestamptz [not null, default: `now()`]
+  updated_at timestamptz [not null, default: `now()`]
+
+  Note: 'EXISTING. Current implementation stores two participants and an optional job/pitch reference.'
+}
+
+Table messages [headercolor: #2F6F52] {
+  id uuid [pk, default: `gen_random_uuid()`]
+  conversation_id uuid [not null]
+  sender_id uuid [not null]
+  receiver_id uuid [not null]
+  content text [not null]
+  original_language varchar(2) [not null, default: 'en']
+  created_at timestamptz [not null, default: `now()`]
+}
+
+Table translation_cache [headercolor: #2F6F52] {
+  id uuid [pk, default: `gen_random_uuid()`]
+  cache_key varchar(255) [not null, unique]
+  source_lang varchar(2) [not null]
+  target_lang varchar(2) [not null]
+  original_text text [not null]
+  translated_text text [not null]
+  provider varchar(80) [not null, default: 'MOCK']
+  created_at timestamptz [not null, default: `now()`]
+
+  Note: 'EXISTING. Current cache used by mock/Google translation providers. Fallback translations are not cached.'
+}
+
+Table notifications [headercolor: #2F6F52] {
+  id uuid [pk, default: `gen_random_uuid()`]
+  user_id uuid [not null]
+  type varchar(50) [not null]
+  title text [not null]
+  message text [not null]
+  link varchar(500)
+  is_read boolean [not null, default: false]
+  created_at timestamptz [not null, default: `now()`]
+}
+
+Table message_translations [headercolor: #94733A] {
+  message_id uuid [not null]
+  target_language varchar(2) [not null]
+  translated_content text [not null]
+  provider varchar(80) [not null]
+  created_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    (message_id, target_language) [pk]
+  }
+
+  Note: 'PROPOSED. Optional materialized translations for chat; the current implementation uses a general cache/service.'
+}
+
+Table voice_assets [headercolor: #94733A] {
+  id uuid [pk, default: `gen_random_uuid()`]
+  owner_user_id uuid [not null]
+  related_message_id uuid
+  related_entity_type varchar(80)
+  related_entity_id uuid
+  language_code varchar(2) [not null]
+  storage_url text [not null]
+  transcript text
+  duration_seconds int
+  created_at timestamptz [not null, default: `now()`]
+
+  Note: 'PROPOSED. README describes voice transcription/audio playback as a future integration. Entity references are intentionally polymorphic until scope is finalized.'
+}
+
+// ---------------------------------------------------------------------------
+// Proposed governance and user-consent entities
+// ---------------------------------------------------------------------------
+
+Table policy_documents [headercolor: #94733A] {
+  id uuid [pk, default: `gen_random_uuid()`]
+  policy_type varchar(40) [not null]
+  version varchar(40) [not null]
+  content text [not null]
+  published_at timestamptz [not null]
+  retired_at timestamptz
+
+  indexes {
+    (policy_type, version) [unique]
+  }
+
+  Note: 'PROPOSED. Registration currently records acceptance time; versioned policy storage is an assumption for auditable consent.'
+}
+
+Table user_consents [headercolor: #94733A] {
+  id uuid [pk, default: `gen_random_uuid()`]
+  user_id uuid [not null]
+  policy_document_id uuid [not null]
+  consented_at timestamptz [not null, default: `now()`]
+  withdrawn_at timestamptz
+
+  indexes {
+    (user_id, policy_document_id, consented_at) [unique]
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Relationships
+// ---------------------------------------------------------------------------
+
+Ref: users.district_id > districts.id
+Ref: users.preferred_language > languages.code
+Ref: user_roles.user_id > users.id
+Ref: user_roles.role_code > roles.code
+Ref: user_roles.assigned_by_user_id > users.id
+Ref: audit_logs.actor_id > users.id
+
+Ref: trades.category_id > job_categories.id
+Ref: skills.category_id > job_categories.id
+
+Ref: job_seeker_profiles.user_id - users.id
+Ref: employer_profiles.user_id - users.id
+Ref: entrepreneur_profiles.user_id - users.id
+Ref: funder_profiles.user_id - users.id
+Ref: training_provider_profiles.user_id - users.id
+Ref: training_courses.provider_id > training_provider_profiles.id
+Ref: course_skills.course_id > training_courses.id
+Ref: course_skills.skill_id > skills.id
+Ref: training_enrollments.course_id > training_courses.id
+Ref: training_enrollments.learner_id > users.id
+Ref: training_certificates.enrollment_id - training_enrollments.id
+Ref: user_skills.user_id > users.id
+Ref: user_skills.skill_id > skills.id
+Ref: worker_experiences.user_id > users.id
+Ref: education_records.user_id > users.id
+Ref: businesses.district_id > districts.id
+Ref: business_members.business_id > businesses.id
+Ref: business_members.user_id > users.id
+
+Ref: jobs.employer_id > users.id
+Ref: jobs.district_id > districts.id
+Ref: jobs.source_language > languages.code
+Ref: job_skills.job_id > jobs.id
+Ref: job_skills.skill_id > skills.id
+Ref: job_applications.job_id > jobs.id
+Ref: job_applications.applicant_id > users.id
+Ref: application_status_history.application_id > job_applications.id
+Ref: application_status_history.changed_by_user_id > users.id
+Ref: saved_jobs.user_id > users.id
+Ref: saved_jobs.job_id > jobs.id
+
+Ref: pitches.entrepreneur_id > users.id
+Ref: pitches.district_id > districts.id
+Ref: pitches.sector_id > sectors.id
+Ref: pitches.source_language > languages.code
+Ref: pitch_interests.pitch_id > pitches.id
+Ref: pitch_interests.funder_id > users.id
+Ref: funding_programs.funder_id > users.id
+Ref: funding_program_sectors.funding_program_id > funding_programs.id
+Ref: funding_program_sectors.sector_id > sectors.id
+Ref: funding_program_districts.funding_program_id > funding_programs.id
+Ref: funding_program_districts.district_id > districts.id
+Ref: funding_applications.funding_program_id > funding_programs.id
+Ref: funding_applications.entrepreneur_id > users.id
+Ref: funding_applications.pitch_id > pitches.id
+
+Ref: verification_requests.user_id - users.id
+Ref: verification_requests.reviewer_id > users.id
+Ref: verification_documents.verification_request_id > verification_requests.id
+Ref: external_verification_checks.verification_request_id > verification_requests.id
+
+Ref: conversations.participant1_id > users.id
+Ref: conversations.participant2_id > users.id
+Ref: messages.conversation_id > conversations.id
+Ref: messages.sender_id > users.id
+Ref: messages.receiver_id > users.id
+Ref: messages.original_language > languages.code
+Ref: translation_cache.source_lang > languages.code
+Ref: translation_cache.target_lang > languages.code
+Ref: message_translations.message_id > messages.id
+Ref: message_translations.target_language > languages.code
+Ref: voice_assets.owner_user_id > users.id
+Ref: voice_assets.related_message_id > messages.id
+Ref: voice_assets.language_code > languages.code
+
+Ref: notifications.user_id > users.id
+Ref: user_consents.user_id > users.id
+Ref: user_consents.policy_document_id > policy_documents.id
