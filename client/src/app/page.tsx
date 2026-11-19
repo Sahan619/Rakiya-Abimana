@@ -125,8 +125,8 @@ export default function HomePage() {
               </Link>
             </div>
             <div className="mt-8 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs font-medium text-slate-500">
-              <span className="inline-flex items-center gap-1.5"><Check size={14} className="text-primary-700" />For job seekers and employers</span>
-              <span className="inline-flex items-center gap-1.5"><Check size={14} className="text-primary-700" />For entrepreneurs and funders</span>
+              <span className="inline-flex items-center gap-1.5"><Check size={14} className="text-primary-700" />{t("home.heroAudienceEmployment", "For job seekers and employers")}</span>
+              <span className="inline-flex items-center gap-1.5"><Check size={14} className="text-primary-700" />{t("home.heroAudienceEntrepreneurship", "For entrepreneurs and funders")}</span>
             </div>
           </div>
 
@@ -136,8 +136,8 @@ export default function HomePage() {
             <div className="relative rounded-[2rem] border border-white bg-white/85 p-4 shadow-[0_30px_90px_rgb(23_75_53/14%)] backdrop-blur sm:p-6">
               <div className="flex items-center justify-between border-b border-slate-100 pb-4">
                 <div>
-                  <p className="text-xs font-medium uppercase tracking-[.15em] text-slate-400">Opportunity board</p>
-                  <p className="mt-1 text-lg font-semibold text-slate-900">A path forward</p>
+                  <p className="text-xs font-medium uppercase tracking-[.15em] text-slate-400">{t("home.opportunityBoardEyebrow", "Opportunity board")}</p>
+                  <p className="mt-1 text-lg font-semibold text-slate-900">{t("home.opportunityBoardTitle", "A path forward")}</p>
                 </div>
                 <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-50 text-primary-700"><Sparkles size={20} /></span>
               </div>
@@ -146,9 +146,9 @@ export default function HomePage() {
                   <div className="flex items-start gap-3">
                     <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary-50 text-primary-700"><BriefcaseBusiness size={20} /></span>
                     <div className="min-w-0 flex-1">
-                      <p className="text-[11px] font-semibold uppercase tracking-wide text-primary-700">Employment</p>
-                      <p className="mt-1 font-semibold text-slate-900">Find work that fits your skills</p>
-                      <p className="mt-1 text-xs text-slate-500">Search by role, district, and more</p>
+                      <p className="text-[11px] font-semibold uppercase tracking-wide text-primary-700">{t("home.opportunityEmploymentLabel", "Employment")}</p>
+                      <p className="mt-1 font-semibold text-slate-900">{t("home.opportunityEmploymentTitle", "Find work that fits your skills")}</p>
+                      <p className="mt-1 text-xs text-slate-500">{t("home.opportunityEmploymentText", "Search by role, district, and more")}</p>
                     </div>
                     <ArrowUpRight size={16} className="text-slate-400" />
                   </div>
@@ -157,22 +157,22 @@ export default function HomePage() {
                   <div className="flex items-start gap-3">
                     <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#f4ead7] text-[#9b7131]"><Sprout size={20} /></span>
                     <div className="min-w-0 flex-1">
-                      <p className="text-[11px] font-semibold uppercase tracking-wide text-[#9b7131]">Entrepreneurship</p>
-                      <p className="mt-1 font-semibold text-slate-900">Turn your idea into a proposal</p>
-                      <p className="mt-1 text-xs text-slate-500">Share your plans with potential funders</p>
+                      <p className="text-[11px] font-semibold uppercase tracking-wide text-[#9b7131]">{t("home.opportunityEntrepreneurshipLabel", "Entrepreneurship")}</p>
+                      <p className="mt-1 font-semibold text-slate-900">{t("home.opportunityEntrepreneurshipTitle", "Turn your idea into a proposal")}</p>
+                      <p className="mt-1 text-xs text-slate-500">{t("home.opportunityEntrepreneurshipText", "Share your plans with potential funders")}</p>
                     </div>
                     <ArrowUpRight size={16} className="text-slate-400" />
                   </div>
                 </div>
               </div>
               <div className="flex items-center justify-between rounded-xl bg-primary-700 px-4 py-3.5 text-white">
-                <span className="text-sm font-medium">Start with one opportunity</span><ArrowRight size={17} />
+                <span className="text-sm font-medium">{t("home.opportunityCta", "Start with one opportunity")}</span><ArrowRight size={17} />
               </div>
             </div>
           </div>
         </div>
         <a href="#opportunities" className="mx-auto mb-7 flex w-fit items-center gap-2 text-xs font-semibold text-slate-500 transition hover:text-primary-800">
-          Discover what you can do <ArrowDown size={14} />
+          {t("home.heroDiscover", "Discover what you can do")} <ArrowDown size={14} />
         </a>
       </section>
 
