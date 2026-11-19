@@ -9,6 +9,7 @@
     "start": "node dist/index.js",
     "test:permissions": "ts-node src/config/permissions.test.ts",
     "test:crypto": "ts-node src/services/crypto.service.test.ts",
+    "test:account-deletion": "ts-node src/services/account-deletion.service.test.ts",
     "test:funders": "ts-node src/services/funder-directory.test.ts",
     "test:translation": "ts-node src/services/translation.test.ts",
     "prisma:generate": "prisma generate",

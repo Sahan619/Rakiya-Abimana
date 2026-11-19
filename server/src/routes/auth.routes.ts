@@ -6,6 +6,7 @@ import { authenticateToken } from "../middleware/auth.middleware";
 import { requirePermission } from "../middleware/role.middleware";
 import { SRI_LANKA_DISTRICTS } from "../constants/districts";
 import { ROLE_DEFINITIONS, permissionsForGuest, permissionsForRoles } from "../config/permissions";
+import { ACCOUNT_DELETION_CONFIRMATION, deleteUserAccount, validateDeletionConfirmation } from "../services/account-deletion.service";
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -468,6 +469,42 @@ router.put("/password", authenticateToken, requirePermission("profile:manage_own
     return res.json({ message: "Password updated successfully" });
   } catch (err) {
     return res.status(500).json({ error: "Failed to update password" });
+  }
+});
+
+// POST /api/auth/delete-account
+router.post("/delete-account", authenticateToken, requirePermission("profile:manage_own"), async (req: Request, res: Response) => {
+  try {
+    const { password, confirmation } = req.body;
+
+    if (typeof password !== "string" || password.length === 0) {
+      return res.status(400).json({ error: "Password confirmation is required" });
+    }
+
+    try {
+      validateDeletionConfirmation(confirmation);
+    } catch {
+      return res.status(400).json({ error: `Type ${ACCOUNT_DELETION_CONFIRMATION} to confirm account deletion` });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: req.user!.id },
+      select: { passwordHash: true }
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: "Account not found" });
+    }
+
+    if (!(await bcrypt.compare(password, user.passwordHash))) {
+      return res.status(401).json({ error: "Password confirmation failed" });
+    }
+
+    await deleteUserAccount(prisma, req.user!.id);
+    res.clearCookie("token");
+    return res.json({ message: "Your account and eligible personal data have been permanently deleted." });
+  } catch {
+    return res.status(500).json({ error: "Unable to delete account" });
   }
 });
 
