@@ -70,7 +70,7 @@ All demo accounts share the following password:
 PORT=5000
 DATABASE_URL="postgresql://postgres:postgres@localhost:5433/jobs_platform"
 JWT_SECRET="rakiya_abimana_jwt_super_secret_key_2026_lk"
-ENCRYPTION_KEY="0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+ENCRYPTION_KEY="replace-with-64-lowercase-hex-characters"
 MATCH_RADIUS_KM=50
 AUTO_TRANSLATE_ENABLED=true
 TRANSLATION_PROVIDER="mock" # "mock" or "google"
@@ -78,6 +78,17 @@ GOOGLE_TRANSLATE_API_KEY= # Required when TRANSLATION_PROVIDER="google"
 VERIFICATION_HOOK="standard" # Pluggable: "gov_live_stub"
 CLIENT_URL="http://localhost:3000"
 ```
+
+Generate a production encryption key in PowerShell without printing it through the application:
+
+```powershell
+$keyBytes = [byte[]]::new(32)
+[System.Security.Cryptography.RandomNumberGenerator]::Fill($keyBytes)
+$key = [Convert]::ToHexString($keyBytes).ToLowerInvariant()
+Set-Clipboard -Value $key
+```
+
+Store the copied key in a secret manager or protected deployment configuration. Back it up separately from the database using an approved encrypted secrets-storage process. Do not commit it, place it in PostgreSQL, or log it. Key rotation requires retaining the old key securely, decrypting and re-encrypting records in a reviewed reversible migration, and verifying every record before retiring the old key.
 
 **Frontend Environment (`client/.env.local`)**:
 ```env

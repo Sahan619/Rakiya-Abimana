@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   User,
   Briefcase,
@@ -18,7 +19,8 @@ import {
   ArrowRight,
   Sparkles,
   Phone,
-  Globe
+  Globe,
+  Trash2
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { useLanguage } from "../../context/LanguageContext";
@@ -41,8 +43,9 @@ interface Category {
 }
 
 export default function ProfilePage() {
-  const { user, can, loading: authLoading, refreshUser, isJobSeeker, isEmployer, isFunder, isEntrepreneur } = useAuth();
+  const { user, can, loading: authLoading, refreshUser, logout, isJobSeeker, isEmployer, isFunder, isEntrepreneur } = useAuth();
   const { t, locale, setLocale } = useLanguage();
+  const router = useRouter();
 
   const [districts, setDistricts] = useState<District[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -95,11 +98,15 @@ export default function ProfilePage() {
   // Password change fields
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
+  const [deletePassword, setDeletePassword] = useState("");
+  const [deleteConfirmation, setDeleteConfirmation] = useState("");
 
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [updatingPassword, setUpdatingPassword] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
+  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
 
   useEffect(() => {
     if (authLoading || !can("profile:manage_own")) return;
@@ -279,6 +286,30 @@ export default function ProfilePage() {
       setError(err.message || "Failed to update password. Please check your current password.");
     } finally {
       setUpdatingPassword(false);
+    }
+  };
+
+  const handleAccountDeletion = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setMessage(null);
+    setError(null);
+
+    if (deleteConfirmation !== "DELETE MY ACCOUNT") {
+      setError("Please type DELETE MY ACCOUNT exactly to confirm.");
+      return;
+    }
+
+    setDeletingAccount(true);
+    try {
+      await api.post("/auth/delete-account", {
+        password: deletePassword,
+        confirmation: deleteConfirmation
+      });
+      await logout();
+      router.replace("/login?deleted=1");
+    } catch (err: any) {
+      setError(err.message || "Account deletion failed. No changes were made.");
+      setDeletingAccount(false);
     }
   };
 
@@ -907,6 +938,73 @@ export default function ProfilePage() {
             </button>
           </div>
         </form>
+      </section>
+
+      <section className="surface-card border border-rose-200 p-6 sm:p-7 space-y-4">
+        <div className="flex items-center gap-3 border-b border-rose-100 pb-3">
+          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-rose-50 text-rose-700">
+            <Trash2 size={18} />
+          </span>
+          <div>
+            <h2 className="text-base font-bold text-slate-900">Delete Account</h2>
+            <p className="text-xs text-slate-500">Permanently remove your account and eligible personal information.</p>
+          </div>
+        </div>
+
+        <p className="text-sm leading-6 text-slate-600">
+          This permanently deletes your role profiles, encrypted NIC information, verification documents, messages, and eligible account data. This action cannot be undone.
+        </p>
+
+        {!showDeleteConfirmation ? (
+          <button
+            type="button"
+            onClick={() => { setError(null); setShowDeleteConfirmation(true); }}
+            className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-rose-700 px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-rose-800"
+          >
+            <Trash2 size={16} />
+            Delete my account
+          </button>
+        ) : (
+          <form onSubmit={handleAccountDeletion} className="space-y-4 rounded-xl border border-rose-200 bg-rose-50/50 p-4">
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-rose-800">Current password *</label>
+              <input
+                type="password"
+                required
+                value={deletePassword}
+                onChange={(event) => setDeletePassword(event.target.value)}
+                className="mt-1.5 min-h-11 w-full rounded-xl border border-rose-200 bg-white px-3.5 text-sm text-slate-900 outline-none focus:border-rose-500 focus:ring-4 focus:ring-rose-100"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-rose-800">Final confirmation *</label>
+              <p className="mt-1 text-xs text-slate-600">Type DELETE MY ACCOUNT to permanently confirm.</p>
+              <input
+                type="text"
+                required
+                value={deleteConfirmation}
+                onChange={(event) => setDeleteConfirmation(event.target.value)}
+                className="mt-1.5 min-h-11 w-full rounded-xl border border-rose-200 bg-white px-3.5 text-sm text-slate-900 outline-none focus:border-rose-500 focus:ring-4 focus:ring-rose-100"
+              />
+            </div>
+            <div className="flex flex-wrap justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => { setShowDeleteConfirmation(false); setDeletePassword(""); setDeleteConfirmation(""); }}
+                className="min-h-10 rounded-xl border border-slate-200 bg-white px-5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={deletingAccount || !deletePassword || deleteConfirmation !== "DELETE MY ACCOUNT"}
+                className="min-h-10 rounded-xl bg-rose-700 px-5 text-sm font-semibold text-white hover:bg-rose-800 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {deletingAccount ? "Deleting account..." : "Permanently delete account"}
+              </button>
+            </div>
+          </form>
+        )}
       </section>
     </div>
   );

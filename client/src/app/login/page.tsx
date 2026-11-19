@@ -24,6 +24,11 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [accountDeleted, setAccountDeleted] = useState(false);
+
+  React.useEffect(() => {
+    setAccountDeleted(new URLSearchParams(window.location.search).get("deleted") === "1");
+  }, []);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -77,6 +82,12 @@ export default function LoginPage() {
         {error && (
           <div role="alert" className="mt-6 flex items-start gap-2 rounded-xl border border-rose-200 bg-rose-50 p-3.5 text-sm text-rose-800">
             <LockKeyhole size={17} className="mt-0.5 shrink-0" /><span>{error}</span>
+          </div>
+        )}
+
+        {accountDeleted && !error && (
+          <div role="status" className="mt-6 rounded-xl border border-emerald-200 bg-emerald-50 p-3.5 text-sm text-emerald-800">
+            Your account and eligible personal information were permanently deleted.
           </div>
         )}
 

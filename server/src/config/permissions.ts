@@ -93,6 +93,7 @@ export const ROLE_DEFINITIONS: Record<Role, RoleDefinition> = {
       "job:view_detail",
       "pitch:browse_approved",
       "funder:browse",
+      "verification:review",
       "user:manage",
       "settings:manage",
       "masterdata:manage",

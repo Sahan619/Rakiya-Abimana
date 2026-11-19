@@ -193,14 +193,37 @@ router.get(
         orderBy: { createdAt: "asc" }
       });
 
-      // Decrypt raw NIC only for Verifiers.
+      // Decrypt raw NIC only for authorized reviewers.
       const enriched = requests.map((item) => {
-        let decryptedNic: string | null = null;
         if (item.encryptedNic) {
           try {
-            decryptedNic = decryptData(item.encryptedNic);
+            const decryptedNic = decryptData(item.encryptedNic);
+
+            return {
+              id: item.id,
+              userId: item.userId,
+              fullName: item.user.fullName,
+              email: item.user.email,
+              phone: item.user.phone,
+              dateOfBirth: item.user.dateOfBirth,
+              district: item.user.district?.nameEn || "N/A",
+              roles: item.user.roles.map((r) => r.role),
+              employerCompany: item.user.employerProfile?.companyName,
+              businessRegNumber: item.user.employerProfile?.businessRegNumber,
+              rawNic: decryptedNic,
+              nicFormat: item.nicFormat,
+              dobMatch: item.dobMatch,
+              gramaNiladhariDocUrl: item.gramaNiladhariDocUrl,
+              businessRegDocUrl: item.businessRegDocUrl,
+              institutionDocUrl: item.institutionDocUrl,
+              status: item.status,
+              rejectionReason: item.rejectionReason,
+              checklistResult: item.checklistResult ? JSON.parse(item.checklistResult) : null,
+              createdAt: item.createdAt,
+              reviewedAt: item.reviewedAt
+            };
           } catch {
-            decryptedNic = "[DECRYPTION_FAILED]";
+            throw new Error("Verification queue contains unreadable encrypted data");
           }
         }
 
@@ -215,7 +238,7 @@ router.get(
           roles: item.user.roles.map((r) => r.role),
           employerCompany: item.user.employerProfile?.companyName,
           businessRegNumber: item.user.employerProfile?.businessRegNumber,
-          rawNic: decryptedNic, // Only verifier/admin can see this
+          rawNic: null,
           nicFormat: item.nicFormat,
           dobMatch: item.dobMatch,
           gramaNiladhariDocUrl: item.gramaNiladhariDocUrl,
