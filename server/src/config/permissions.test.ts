@@ -22,6 +22,7 @@ const expectedPermissions: Record<Role, Permission[]> = {
     "job:view_detail",
     "pitch:browse_approved",
     "funder:browse",
+    "verification:review",
     "user:manage",
     "settings:manage",
     "masterdata:manage",
@@ -94,6 +95,7 @@ test("every role has exactly its configured permission allow-list", () => {
   }
   assert.equal(hasPermission([Role.JobSeeker], "job:create"), false);
   assert.equal(hasPermission([Role.Admin], "pitch:review"), false);
+  assert.equal(hasPermission([Role.Admin], "verification:review"), true);
   assert.equal(hasPermission([Role.Entrepreneur], "job:create"), false);
   assert.equal(hasPermission([Role.Funder], "job:apply"), false);
 });
@@ -178,6 +180,32 @@ test("requirePermission calls next when the user has permission", () => {
   requirePermission("job:create")(makeRequest([Role.Employer], true), response, next);
   assert.equal(nextCalled, true);
   assert.equal(statusCode(), 200);
+});
+
+test("only verifier and admin roles can access verification review permission", () => {
+  assert.equal(hasPermission([Role.JobSeeker], "verification:review"), false);
+  assert.equal(hasPermission([Role.Employer], "verification:review"), false);
+  assert.equal(hasPermission([Role.Verifier], "verification:review"), true);
+  assert.equal(hasPermission([Role.Admin], "verification:review"), true);
+
+  const unauthorized = makeResponse();
+  let unauthorizedNext = false;
+  requirePermission("verification:review")(
+    makeRequest([Role.JobSeeker], true),
+    unauthorized.response,
+    () => { unauthorizedNext = true; }
+  );
+  assert.equal(unauthorized.statusCode(), 403);
+  assert.equal(unauthorizedNext, false);
+
+  const verifier = makeResponse();
+  let verifierNext = false;
+  requirePermission("verification:review")(
+    makeRequest([Role.Verifier], false),
+    verifier.response,
+    () => { verifierNext = true; }
+  );
+  assert.equal(verifierNext, true);
 });
 
 test("requirePermission rejects unverified users for verified permissions", () => {
